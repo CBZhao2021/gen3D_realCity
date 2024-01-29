@@ -1,0 +1,95 @@
+# Created with FME Version: FME(R) 2023.1.0.1 20230831 - Build 23620 - macosx-aarch64
+mtllib materials.mtl
+# COORDINATE_SYSTEM:  OGC_DEF PROJCS["JGD2011 / Japan Plane Rectangular CS IX",GEOGCS["JGD2011",DATUM["Japanese_Geodetic_Datum_2011",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],AUTHORITY["EPSG","1128"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","6668"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",36],PARAMETER["central_meridian",139.833333333333],PARAMETER["scale_factor",0.9999],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AUTHORITY["EPSG","6677"]]
+# Number of Geometry Coordinates  : 13
+# Number of Texture  Coordinates  : 35
+# Number of Normal   Coordinates  : 0
+v -12121.295000 -34361.729000 50.670000
+v -12121.760000 -34357.646000 50.670000
+v -12121.295000 -34361.729000 47.770000
+v -12121.760000 -34357.646000 47.770000
+v -12121.760000 -34357.646000 44.794000
+v -12121.295000 -34361.729000 44.791000
+v -12117.109000 -34361.246000 47.770000
+v -12116.016000 -34361.121000 47.770000
+v -12117.109000 -34361.246000 44.791000
+v -12117.579000 -34357.164000 44.794000
+v -12117.579000 -34357.164000 47.770000
+v -12118.627000 -34357.285000 44.794000
+v -12116.486000 -34357.038000 47.770000
+vt 0.933810 0.944662
+vt 0.051863 0.852768
+vt 0.944178 0.550661
+vt 0.064101 0.458975
+vt 0.076606 0.056595
+vt 0.954783 0.147663
+vt 0.297480 0.779615
+vt 0.247580 0.962986
+vt 0.093200 0.120941
+vt 0.490306 0.077330
+vt 0.023100 0.968396
+vt 0.023100 0.031604
+vt 0.976900 0.032547
+vt 0.976900 0.968396
+vt 0.977392 0.031486
+vt 0.977392 0.968514
+vt 0.261936 0.031486
+vt 0.022608 0.968514
+vt 0.022608 0.031486
+vt 0.189864 0.866261
+vt 0.242693 0.914014
+vt 0.251240 0.991417
+vt 0.162755 0.936486
+vt 0.956827 0.940681
+vt 0.043173 0.059319
+vt 0.956827 0.059319
+vt 0.043173 0.940681
+vt 0.023826 0.016172
+vt 0.976529 0.016521
+vt 0.937561 0.856520
+vt 0.023007 0.984147
+vt 0.687312 0.011606
+vt 0.312689 0.988394
+vt 0.030066 0.040854
+vt 0.969934 0.959378
+# Number of Elements in set       : 3
+f 5 12 6 
+f 6 12 9 
+f 12 10 9 
+usemtl 17500
+# Number of Elements in set       : 4
+f 1/1 2/2 3/3 
+f 2/2 4/4 3/3 
+f 5/5 6/6 3/3 
+f 4/4 5/5 3/3 
+usemtl 17633
+# Number of Elements in set       : 2
+f 7/7 8/8 1/9 
+f 3/10 7/7 1/9 
+usemtl 17734
+# Number of Elements in set       : 2
+f 8/28 13/29 2/30 
+f 1/31 8/28 2/30 
+usemtl 17735
+# Number of Elements in set       : 2
+f 7/11 9/12 10/13 
+f 11/14 7/11 10/13 
+usemtl 17736
+# Number of Elements in set       : 3
+f 5/15 4/16 12/17 
+f 12/17 11/18 10/19 
+f 12/17 4/16 11/18 
+usemtl 17737
+# Number of Elements in set       : 2
+f 11/20 4/21 2/22 
+f 13/23 11/20 2/22 
+usemtl 17738
+# Number of Elements in set       : 2
+f 7/24 6/25 9/26 
+f 7/24 3/27 6/25 
+usemtl 17739
+# Number of Elements in set       : 2
+f 13/32 7/33 11/34 
+f 13/32 8/35 7/33 
+# Total Number of Elements in file: 22
+# EOF

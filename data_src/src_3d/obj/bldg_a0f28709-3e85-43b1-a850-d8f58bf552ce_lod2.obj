@@ -1,0 +1,56 @@
+# Created with FME Version: FME(R) 2023.1.0.1 20230831 - Build 23620 - macosx-aarch64
+mtllib materials.mtl
+# COORDINATE_SYSTEM:  OGC_DEF PROJCS["JGD2011 / Japan Plane Rectangular CS IX",GEOGCS["JGD2011",DATUM["Japanese_Geodetic_Datum_2011",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],AUTHORITY["EPSG","1128"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","6668"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",36],PARAMETER["central_meridian",139.833333333333],PARAMETER["scale_factor",0.9999],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AUTHORITY["EPSG","6677"]]
+# Number of Geometry Coordinates  : 10
+# Number of Texture  Coordinates  : 17
+# Number of Normal   Coordinates  : 0
+v -12656.070304 -34927.896380 41.272419
+v -12655.060500 -34928.975473 38.189045
+v -12656.070449 -34927.896727 38.188971
+v -12655.060356 -34928.975125 41.272493
+v -12658.663947 -34932.225412 38.189583
+v -12658.663801 -34932.225062 41.273031
+v -12660.648132 -34929.021692 41.272763
+v -12660.648280 -34929.022040 38.189315
+v -12659.238243 -34926.990014 41.272467
+v -12659.238390 -34926.990361 38.189019
+vt 0.687277 0.390625
+vt 0.759275 0.991488
+vt 0.687277 0.991488
+vt 0.759275 0.390625
+vt 0.995699 0.991488
+vt 0.995699 0.390625
+vt 0.406249 0.390625
+vt 0.406249 0.991488
+vt 0.222656 0.991488
+vt 0.222656 0.390625
+vt 0.526736 0.390625
+vt 0.526736 0.991488
+vt 0.003906 0.003815
+vt 0.078546 0.009372
+vt 0.003906 0.984375
+vt 0.219732 0.362081
+vt 0.191217 0.848606
+# Number of Elements in set       : 3
+f 10 3 8 
+f 3 2 5 
+f 3 5 8 
+usemtl skjp1411
+# Number of Elements in set       : 3
+f 4/13 1/14 6/15 
+f 1/14 9/16 7/17 
+f 6/15 1/14 7/17 
+usemtl skjp141100
+# Number of Elements in set       : 10
+f 1/1 2/2 3/3 
+f 1/1 4/4 2/2 
+f 4/4 5/5 2/2 
+f 4/4 6/6 5/5 
+f 7/7 8/8 5/9 
+f 6/10 7/7 5/9 
+f 9/11 10/12 8/8 
+f 7/7 9/11 8/8 
+f 1/1 3/3 10/12 
+f 9/11 1/1 10/12 
+# Total Number of Elements in file: 16
+# EOF

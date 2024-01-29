@@ -1,0 +1,45 @@
+# Created with FME Version: FME(R) 2023.1.0.1 20230831 - Build 23620 - macosx-aarch64
+mtllib materials.mtl
+# COORDINATE_SYSTEM:  OGC_DEF PROJCS["JGD2011 / Japan Plane Rectangular CS IX",GEOGCS["JGD2011",DATUM["Japanese_Geodetic_Datum_2011",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],AUTHORITY["EPSG","1128"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","6668"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",36],PARAMETER["central_meridian",139.833333333333],PARAMETER["scale_factor",0.9999],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AUTHORITY["EPSG","6677"]]
+# Number of Geometry Coordinates  : 8
+# Number of Texture  Coordinates  : 14
+# Number of Normal   Coordinates  : 0
+v 10996.242259 -11493.107195 15.253444
+v 10996.430497 -11489.817197 15.255492
+v 10997.925786 -11491.899618 15.253855
+v 10994.747458 -11491.025900 15.255080
+v 10996.430858 -11489.818283 16.967169
+v 10996.242620 -11493.108280 16.965122
+v 10997.926146 -11491.900704 16.965533
+v 10994.747820 -11491.026986 16.966757
+vt 0.377187 0.016138
+vt 0.016835 0.562482
+vt 0.016667 0.016189
+vt 0.377187 0.562500
+vt 0.981829 0.660114
+vt 0.981829 1.000000
+vt 0.762393 1.000000
+vt 0.762393 0.660114
+vt 0.000000 0.660114
+vt 0.271401 1.000000
+vt 0.000000 1.000000
+vt 0.271401 0.660114
+vt 0.490865 1.000000
+vt 0.490865 0.660114
+# Number of Elements in set       : 2
+f 1 2 3 
+f 1 4 2 
+usemtl kash0191
+# Number of Elements in set       : 10
+f 5/1 6/2 7/3 
+f 5/1 8/4 6/2 
+f 6/5 1/6 3/7 
+f 7/8 6/5 3/7 
+f 6/9 4/10 1/11 
+f 6/9 8/12 4/10 
+f 8/12 2/13 4/10 
+f 8/12 5/14 2/13 
+f 7/8 3/7 2/13 
+f 5/14 7/8 2/13 
+# Total Number of Elements in file: 12
+# EOF
