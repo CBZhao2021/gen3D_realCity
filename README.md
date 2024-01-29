@@ -9,7 +9,6 @@ Function impression
 
 # TODO
 
-- Release the main codes. 
 - Improve the vegetation and road extraction performance.
 - Improve building generation speed and performance.
 - Revise the topological relationship of relief/road/cityFurniture/vegetation
