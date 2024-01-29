@@ -1,4 +1,7 @@
 *.ckpt
-*.obj
-*.pth
-*.pt
+
+bg_extract/ckpt
+
+lightning_logs/*
+
+.idea
