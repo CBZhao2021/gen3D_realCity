@@ -132,15 +132,15 @@ class genRoad:
                  img_path,
                  width=2.,
                  width_sub=0.1,
-                 light_ratio=0.1,
-                 tele_ratio=1.,
+                 light_ratio=10,
+                #  tele_ratio=1.,
                  **kwargs):
         self.img_path = img_path
         # self.img_resolution = img_resolution
         self.width = width
         self.width_sub = width_sub
         self.light_ratio = light_ratio
-        self.tele_ratio = tele_ratio
+        # self.tele_ratio = tele_ratio
 
         self.road_limit = None
 
@@ -255,8 +255,9 @@ class genRoad:
             if not tele_pole_point[x].within(self.road_limit).any():
                 self.mesh_device.append(tmp_mesh)
 
-    def gen_device_lod2(self, shp):
+    def gen_device_lod2(self, shp, pole_ratio=10):
         self.mesh_device = []
+        self.light_ratio = 1. / pole_ratio
 
         tele_pole_mesh = trimesh.load(os.path.join('./data_src/src_3d/lod3frn/electric_pole',
                                                    'obj_52385618_frn_6697_op_frn_0ece98a1-6070-4315-88d4-3d4546168814__493155_25.obj'))
@@ -266,7 +267,7 @@ class genRoad:
         tele_pole_mesh_zmin = np.min(tele_pole_mesh.vertices[:, 2])
         tele_pole_mesh_h = np.max(tele_pole_mesh.vertices[:, 2]) - tele_pole_mesh_zmin
 
-        traf_light_mesh = trimesh.load(os.path.join(r'./data_src/src_3d/lod3frn/traffic_light',
+        traf_light_mesh = trimesh.load(os.path.join('./data_src/src_3d/lod3frn/traffic_light',
                                                     'obj_52385618_frn_6697_op_frn_25870971-faa3-4677-b281-f192176cfbea__711063_25.obj'))
         traf_light_mesh = traf_light_mesh.dump(concatenate=True) if isinstance(traf_light_mesh,
                                                                                trimesh.Scene) else traf_light_mesh
@@ -299,7 +300,7 @@ class genRoad:
 
         res_traf_light = []
         for x in random.sample(list(range(len(res_tele_pole))),
-                               int(len(res_tele_pole) * self.light_ratio / (self.light_ratio + self.tele_ratio))):
+                               int(len(res_tele_pole) * self.light_ratio)):
             tmp_traf_light_mesh = traf_light_mesh.copy()
             tele_pole_point_xy = res_tele_pole[x].centroid[:2]
             trans_traf_mesh = [tele_pole_point_xy[0] - traf_light_mesh_xy[0],
@@ -417,7 +418,10 @@ class genRoad:
             tmp_vertices[:, 2] += z_points_interpolate[i] + 0.01
             tmp_mesh.vertices = tmp_vertices
 
-    def gen_road_run(self, road_lod=1, device_lod=2, points_relief=None, save_gml=True, gml_root=''):
+    def gen_road_run(self, road_lod=1, device_lod=2, points_relief=None, save_gml=True, gml_root='', road_width_range=[1, 10], road_sub=0.1):
+        self.width = random.randint(road_width_range[0], road_width_range[1])
+        self.width_sub = road_sub
+        
         if road_lod == 1:
             self.gen_mesh_road(self.roi_road, self.width)
             self.gen_mesh_road_sub(self.roi_road, self.width, self.width_sub)
@@ -982,10 +986,10 @@ def param_parser():
     parser.add_argument('--road_width_ratio', help='Ratio of main road width and sidewalk width. (> 0.1) ', type=float, nargs=1, default=0.1)
     
     parser.add_argument('--veg_lod', help='LOD of vegetation objects. (0 - 2) ', type=int, nargs=1, default=2)
-    parser.add_argument('--veg_height_ratio', help='Ratio of low vegetation and medium-high tree. (> 0.1) ', type=float, nargs=1, default=0.1)
+    parser.add_argument('--veg_height_ratio', help='Ratio of low vegetation and medium-high tree. (> 1) ', type=float, nargs=1, default=0.1)
     
     parser.add_argument('--device_lod', help='LOD of the cityFurniture. (0 - 2) ', type=int, nargs=1, default=2)
-    parser.add_argument('--device_type_ratio', help='Ratio of utility poles and traffic lights. (> 0.1) ', type=float, nargs=1, default=0.1)
+    parser.add_argument('--device_type_ratio', help='Ratio of utility poles and traffic lights. (> 1) ', type=float, nargs=1, default=0.1)
     
     parser.add_argument('--relief_lod', help='LOD of terrain surface. (0 - 1) ', type=int, nargs=1, default=1)
     
@@ -1026,17 +1030,17 @@ def main():
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
     # bg model
-    img_path = satellite_image
-    gen_road = genRoad(img_path=img_path)
+    # img_path = satellite_image
+    gen_road = genRoad(img_path=satellite_image)
     gen_road.crop_road_lineStr()
-    mesh_road = gen_road.gen_road_run(road_lod=1, device_lod=2, gml_root=gml_root_path)
+    mesh_road = gen_road.gen_road_run(road_lod=lod_road, device_lod=lod_device, gml_root=gml_root_path, road_width_range=[road_width_low, road_width_high], road_sub=road_width_sub)
     road_limit = gen_road.road_limit
 
     # gen_building = genBuilding(bdg_src_path='/fast/zcb/data/PLATEAU_obj/gen3d_realCity/gen3d_realCity_testData/mapbox/test03/footprint/footprint_test_3_selected.geojson')
     # mesh_building = gen_building.gen_building_run(building_lod=2, limit=None, points_relief=None)
 
-    gen_vegetation = genVegetation(img_path=img_path)
-    mesh_vege = gen_vegetation.gen_vege_run(limit_road=None, limit_bdg=None, dense=2000, lod=2, gml_root=gml_root_path)
+    gen_vegetation = genVegetation(img_path=satellite_image)
+    mesh_vege = gen_vegetation.gen_vege_run(limit_road=None, limit_bdg=None, dense=2000, lod=lod_vegetation, gml_root=gml_root_path)
 
     res = mesh_vege + mesh_road
     combined_mesh = trimesh.util.concatenate(res)

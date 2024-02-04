@@ -464,7 +464,7 @@ def bldg_citygml_realCity(vertices, faces, vertex_num=0, lod=2, srs_name="http:/
             vertex_num = vertex_num + len(vs)
 
     else:
-        print("Building error: Only lod 1 and 2 is implemented. ")
+        raise Exception("Building error: Only lod 1 and 2 is implemented. ")
 
     return cityModel
 
