@@ -1004,7 +1004,6 @@ def main():
     crs = params.crs
     
     gml_root_path = params.output_path
-    geojson_path = './gen3d_realCity_testData/mapbox/test02/footprint/footprint_test_2_selected.geojson'
     obj_root_path = '../obj_geo'
 
     lod_building = params.building_lod
@@ -1045,7 +1044,7 @@ def main():
     combined_mesh.export(os.path.join(obj_root_path, f'test_lod{lod_building}.obj'))
 
     # building
-    polygons, names, origin_coords, pixel_sizes, footprint_images = read_geojson_and_rasterize(geojson_path)
+    polygons, names, origin_coords, pixel_sizes, footprint_images = read_geojson_and_rasterize(bldg_footprint)
 
     acc_vertices, acc_faces = [], []
     vertex_num = len(combined_mesh.vertices)
@@ -1059,7 +1058,7 @@ def main():
             img_Geotrans = np.array(
                 [origin_coords[idx][0], pixel_sizes[idx][0], 0, origin_coords[idx][1], 0, pixel_sizes[idx][1]],
                 dtype=np.float32)
-            vertices, faces = bldg_lod1_gen_realCity(polygon[0], img_Geotrans, vertex_num)
+            vertices, faces = bldg_lod1_gen_realCity(polygon[0], storey_low, storey_high, vertex_num)
 
             OBJ_output(os.path.join(obj_root_path, 'test_lod1.obj'), vertices, faces, vertex_num)
 
@@ -1071,14 +1070,20 @@ def main():
         model = create_model(cfg_file).cpu()
         index_list = [i for i in range(len(footprint_images))]
         random.shuffle(index_list)
-        index_list_length = len(index_list)
         if not sum(bldg_type) == 1:
-            print('Warning: Not full probabilities. Converting the remaining to Lod1-flat. ')
+            print('Warning: Not full probabilities. Converting the remaining to Lod1-flat...')
+        elif sum(bldg_type) > 1:
+            print('Probabilities overflowed. Discarding the remaining portions...')
+
+        bldg_ratio = [prob_t1, prob_t2, prob_t3, prob_t4, prob_t5, prob_t6]
+        bldg_ratio_pt = []
+        for i in range(1, len(bldg_ratio) + 1):
+            bldg_ratio_pt.append(int(sum(bldg_ratio_pt[:i]) * len(index_list)))
 
         ckpt_idx = 0
         ddim_sampler = ""
         for i, idx in enumerate(index_list):
-            if not i % 10:
+            if not i or i in bldg_ratio_pt:
                 model.load_state_dict(
                     load_state_dict(ckpt_files[ckpt_idx],
                                     location='cuda'))
@@ -1087,13 +1092,17 @@ def main():
 
                 ckpt_idx += 1
                 if ckpt_idx >= 5:
-                    ckpt_idx = 0
+                    ckpt_idx = -1
+                    
+            if ckpt_idx == -1:
+                vertices, faces = bldg_lod1_gen_realCity(polygons[idx][0], 1, 50, vertex_num)
 
-            img_Geotrans = np.array(
-                [origin_coords[idx][0], pixel_sizes[idx][0], 0, origin_coords[idx][1], 0, pixel_sizes[idx][1]],
-                dtype=np.float32)
-            vertices, faces = inference(model, ddim_sampler, footprint_images[idx], img_Geotrans, polygons[idx][0],
-                                        vertex_num)
+            else:
+                img_Geotrans = np.array(
+                    [origin_coords[idx][0], pixel_sizes[idx][0], 0, origin_coords[idx][1], 0, pixel_sizes[idx][1]],
+                    dtype=np.float32)
+                vertices, faces = inference(model, ddim_sampler, footprint_images[idx], img_Geotrans, polygons[idx][0],
+                                            vertex_num, mesh_scale, random_seed)
 
             OBJ_output(os.path.join(obj_root_path, 'test_lod2.obj'), vertices, faces, vertex_num, bldg_lod=2)
 
@@ -1101,7 +1110,7 @@ def main():
             acc_faces.append([[coord + vertex_num for coord in face] for face in faces])
             vertex_num = vertex_num + len(vertices)
 
-    save_citygml(bldg_citygml_realCity(acc_vertices, acc_faces, lod=lod_building, vertex_num=len(combined_mesh.vertices)), os.path.join(gml_root_path, 'building.gml'))
+    save_citygml(bldg_citygml_realCity(acc_vertices, acc_faces, lod=lod_building, vertex_num=len(combined_mesh.vertices), srs_name="http://www.opengis.net/def/crs/EPSG/0/" + crs), os.path.join(gml_root_path, 'building.gml'))
 
 
 if __name__ == '__main__':
