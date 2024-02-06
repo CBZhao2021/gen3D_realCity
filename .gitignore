@@ -5,3 +5,9 @@ bg_extract/ckpt
 lightning_logs/*
 
 .idea
+
+config.py
+
+__pycache__
+
+*.gml

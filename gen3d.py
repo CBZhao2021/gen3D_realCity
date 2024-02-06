@@ -132,7 +132,7 @@ class genRoad:
                  img_path,
                  width=2.,
                  width_sub=0.1,
-                 light_ratio=10,
+                 light_ratio=10.,
                 #  tele_ratio=1.,
                  **kwargs):
         self.img_path = img_path
@@ -753,8 +753,8 @@ class genVegetation:
                  img_path,
                  vege_root='./data_src/src_3d/lod3veg/SolitaryVegetationObject/',
                  vege_label='./data_src/src_3d/tree_label.csv',
-                 low_ratio=0.1,
-                 high_ratio=1.,
+                #  low_ratio=0.1,
+                 high_ratio=10.,
                  **kwargs):
         check_img_ext(img_path)
         self.img_path = img_path
@@ -762,7 +762,7 @@ class genVegetation:
         self.vege_id = self.vege_mes['id'].values
         self.vege_type = self.vege_mes['type'].values
         self.vege_root = vege_root
-        self.low_ratio = low_ratio
+        # self.low_ratio = low_ratio
         self.high_ratio = high_ratio
 
     def gen_tree_mesh_lod1(self, limit_road, limit_bdg, dense=200):
@@ -804,7 +804,7 @@ class genVegetation:
                 tmp_idx.append(i)
         tar_xy = tar_xy[tmp_idx]
 
-        high_num = int(len(tar_xy) * self.high_ratio / (self.high_ratio + self.low_ratio))
+        high_num = int(len(tar_xy) * self.high_ratio)
 
         for i in range(high_num):
             tree_poly = Point(tar_xy[i]).buffer(random.uniform(1., 3.))
@@ -862,8 +862,8 @@ class genVegetation:
                 tmp_idx.append(i)
         tar_xy = tar_xy[tmp_idx]
 
-        high_num = int(len(tar_xy) * self.high_ratio / (self.high_ratio + self.low_ratio))
-        low_num = int(len(tar_xy) * self.low_ratio / (self.high_ratio + self.low_ratio))
+        high_num = int(len(tar_xy) * (self.high_ratio / (self.high_ratio + 1)))
+        low_num = int(len(tar_xy) * (1 / (self.high_ratio + 1)))
         high_idx = self.vege_id[self.vege_type == 1]
         low_idx = self.vege_id[self.vege_type == 0]
         high_idx_ = random.choices(list(range(len(high_idx))), k=high_num)
@@ -967,37 +967,39 @@ class genVegetation:
 def param_parser():
     parser = argparse.ArgumentParser(description="Parameters for real city generation. ")
     
-    parser.add_argument('-i', '--input', help='Root path of building footprints. (GeoJSON)', type=str, nargs=1)
+    parser.add_argument('-i', '--input', help='Root path of building footprints. (GeoJSON)', type=str)
     parser.add_argument('--img', help='Input path of satellite image file. (GeoTIFF)', type=str, default='')
-    parser.add_argument('--output_path', help='Root path of output file. ', type=str, nargs=1)
+    parser.add_argument('--output_path', help='Root path of output file. Type nothing for the project directory. ', type=str, default='')
     
-    parser.add_argument('-s', '--scale', help='Detail of the generated building. (0 - 2)', type=float, nargs=1, default=2.0)
+    parser.add_argument('-s', '--scale', help='Detail of the generated building. (0 - 2)', type=float, default=2.0)
     parser.add_argument('-r', '--random_seed', help='Global random seed of the generated scene. (0 - 65535)', type=int, default=1024)
-    parser.add_argument('--crs', help='Set geo-reference for output file. (EPSG)', type=str, nargs=1, default='30169')
+    parser.add_argument('--crs', help='Set geo-reference for output file. (EPSG)', type=str, default='30169')
 
-    parser.add_argument('--building_lod', help='LOD of generated building. (0 - 2) ', type=int, nargs=1, default=2)
+    parser.add_argument('--building_lod', help='LOD of generated building. (0 - 2) ', type=int, default=2)
     parser.add_argument('--building_storey', help='Storey range of buildings. (1 - 50) ', type=int, nargs=2, default=[1, 50])
     parser.add_argument('--building_type_ratio', help='Ratios of different roof types (Flat, Storey-difference Flat, Mixture, Slope1, Slope2, Pure Flat). \
                                                              Input the number in order. ', 
                         nargs=6, type=float, default=[0.2, 0.3, 0.3, 0.2, 0.0, 0.0])
     
-    parser.add_argument('--road_lod', help='LOD of road objects. (0 - 2) ', type=int, nargs=1, default=1)
+    parser.add_argument('--road_lod', help='LOD of road objects. (0 - 2) ', type=int, default=1)
     parser.add_argument('--road_width', help='Range of road widths. (1 - 20) ', type=float, nargs=2, default=[1, 20])
-    parser.add_argument('--road_width_ratio', help='Ratio of main road width and sidewalk width. (> 0.1) ', type=float, nargs=1, default=0.1)
+    parser.add_argument('--road_width_ratio', help='Ratio of main road width and sidewalk width. (> 0.1) ', type=float, default=0.1)
     
-    parser.add_argument('--veg_lod', help='LOD of vegetation objects. (0 - 2) ', type=int, nargs=1, default=2)
-    parser.add_argument('--veg_height_ratio', help='Ratio of low vegetation and medium-high tree. (> 1) ', type=float, nargs=1, default=0.1)
+    parser.add_argument('--veg_lod', help='LOD of vegetation objects. (0 - 2) ', type=int, default=2)
+    parser.add_argument('--veg_height_ratio', help='Ratio of low vegetation and medium-high tree. (> 1) ', type=float, default=10.)
     
-    parser.add_argument('--device_lod', help='LOD of the cityFurniture. (0 - 2) ', type=int, nargs=1, default=2)
-    parser.add_argument('--device_type_ratio', help='Ratio of utility poles and traffic lights. (> 1) ', type=float, nargs=1, default=0.1)
+    parser.add_argument('--device_lod', help='LOD of the cityFurniture. (0 - 2) ', type=int, default=2)
+    parser.add_argument('--device_type_ratio', help='Ratio of utility poles and traffic lights. (> 1) ', type=float, default=10.)
     
-    parser.add_argument('--relief_lod', help='LOD of terrain surface. (0 - 1) ', type=int, nargs=1, default=1)
+    parser.add_argument('--relief_lod', help='LOD of terrain surface. (0 - 1) ', type=int, default=1)
     
     args = parser.parse_args()
     return args
     
 
 def main():
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'    
+    
     params = param_parser()
     
     bldg_footprint = params.input
@@ -1012,34 +1014,29 @@ def main():
 
     lod_building = params.building_lod
     storey_low, storey_high = params.building_storey
-    bldg_type = params.building_type_ratio if lod_building == 2 else []
-    prob_t1, prob_t2, prob_t3, prob_t4, prob_t5, prob_t6 = bldg_type
+    prob_t1, prob_t2, prob_t3, prob_t4, prob_t5, prob_t6 = params.building_type_ratio if lod_building == 2 else [0, 0, 0, 0, 0, 0]
     
     lod_road = params.road_lod
     road_width_low, road_width_high = params.road_width
     road_width_sub = params.road_width_ratio
     
     lod_vegetation = params.veg_lod
-    low_tree_ratio, high_tree_ratio = params.veg_height_ratio
+    high_tree_ratio = params.veg_height_ratio
     
     lod_device = params.device_lod
     telegraph_pole_ratio = params.device_type_ratio
     
     lod_relief = params.relief_lod
-    
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
     # bg model
-    # img_path = satellite_image
-    gen_road = genRoad(img_path=satellite_image)
+     # road & device
+    gen_road = genRoad(img_path=satellite_image, light_ratio=telegraph_pole_ratio)
     gen_road.crop_road_lineStr()
     mesh_road = gen_road.gen_road_run(road_lod=lod_road, device_lod=lod_device, gml_root=gml_root_path, road_width_range=[road_width_low, road_width_high], road_sub=road_width_sub)
     road_limit = gen_road.road_limit
-
-    # gen_building = genBuilding(bdg_src_path='/fast/zcb/data/PLATEAU_obj/gen3d_realCity/gen3d_realCity_testData/mapbox/test03/footprint/footprint_test_3_selected.geojson')
-    # mesh_building = gen_building.gen_building_run(building_lod=2, limit=None, points_relief=None)
-
-    gen_vegetation = genVegetation(img_path=satellite_image)
+    
+     # veg & relief
+    gen_vegetation = genVegetation(img_path=satellite_image, high_ratio=high_tree_ratio)
     mesh_vege = gen_vegetation.gen_vege_run(limit_road=None, limit_bdg=None, dense=2000, lod=lod_vegetation, gml_root=gml_root_path)
 
     res = mesh_vege + mesh_road
@@ -1047,11 +1044,13 @@ def main():
 
     combined_mesh.export(os.path.join(obj_root_path, f'test_lod{lod_building}.obj'))
 
+
     # building
     polygons, names, origin_coords, pixel_sizes, footprint_images = read_geojson_and_rasterize(bldg_footprint)
 
     acc_vertices, acc_faces = [], []
     vertex_num = len(combined_mesh.vertices)
+    print(f'bg_vertices num: {vertex_num}')
     # vertex_num = 0
 
     with open(os.path.join(obj_root_path, f'test_lod{lod_building}.obj'), 'a') as obj_file:
@@ -1074,10 +1073,12 @@ def main():
         model = create_model(cfg_file).cpu()
         index_list = [i for i in range(len(footprint_images))]
         random.shuffle(index_list)
+        
+        bldg_type = [prob_t1, prob_t2, prob_t3, prob_t4, prob_t5, prob_t6]
         if not sum(bldg_type) == 1:
             print('Warning: Not full probabilities. Converting the remaining to Lod1-flat...')
         elif sum(bldg_type) > 1:
-            print('Probabilities overflowed. Discarding the remaining portions...')
+            raise Exception('Probabilities overflowed. Set the values with whose sum under 1. ')
 
         bldg_ratio = [prob_t1, prob_t2, prob_t3, prob_t4, prob_t5, prob_t6]
         bldg_ratio_pt = []

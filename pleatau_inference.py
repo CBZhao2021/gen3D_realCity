@@ -333,7 +333,7 @@ def inference(model, ddim_sampler, im_data, im_Geotrans, keypoint_array, vertex_
     return vertices, faces
 
 
-def bldg_lod1_gen_realCity(keypoint_array, im_Geotrans, vertex_num, elevation=None):
+def bldg_lod1_gen_realCity(keypoint_array, storey_low, storey_high, vertex_num):
     bldg_vertices, bldg_faces = [], []
     vertex_index = 1
     # print(vertex_num)
@@ -341,7 +341,7 @@ def bldg_lod1_gen_realCity(keypoint_array, im_Geotrans, vertex_num, elevation=No
     # Roof & bottom
     for r in range(2):
         face = []
-        rand_elev = random.randint(2, 30)
+        rand_elev = random.randint(storey_low, storey_high)
         for p in keypoint_array[:-1]:
             elev = rand_elev if r == 0 else 0
             bldg_vertices.append([p[0], p[1], elev])
@@ -469,97 +469,97 @@ def bldg_citygml_realCity(vertices, faces, vertex_num=0, lod=2, srs_name="http:/
     return cityModel
 
 
-def main():
-    # args=arg()
-    # ckpt_file=args.cldm_ckpt
-    # input_tiffs=args.input
-    # output_tiff=args.output
-    # cfg_file=args.cfg
+# def main():
+#     # args=arg()
+#     # ckpt_file=args.cldm_ckpt
+#     # input_tiffs=args.input
+#     # output_tiff=args.output
+#     # cfg_file=args.cfg
 
 
-    ckpt_file = '/fast/zcb/code/ControlNet/lightning_logs/plateau_dataEnhancement_NType6/checkpoints/epoch=13-step=13999.ckpt'
-    input_tiffs = '/fast/zcb/data/pleatau/data/gen_test_data/TIFF/003_92234.tiff'
-    output_tiff = '/fast/zcb/data/pleatau/data/gen_test_data/TIFF_out'
-    cfg_file = '/fast/zcb/code/ControlNet/models/cldm_v21.yaml'
-    geojson_path = '/fast/zcb/data/PLATEAU_obj/gen3d_realCity/gen3d_realCity_testData/test02/footprint/footprint_test_2_selected.geojson'
-    gml_root_path = '/fast/zcb/data/PLATEAU_obj/gml_geo'
-    # obj_output_path = '/fast/zcb/data/PLATEAU_obj/obj_geo/obj_geo.obj'
+#     ckpt_file = '/fast/zcb/code/ControlNet/lightning_logs/plateau_dataEnhancement_NType6/checkpoints/epoch=13-step=13999.ckpt'
+#     input_tiffs = '/fast/zcb/data/pleatau/data/gen_test_data/TIFF/003_92234.tiff'
+#     output_tiff = '/fast/zcb/data/pleatau/data/gen_test_data/TIFF_out'
+#     cfg_file = '/fast/zcb/code/ControlNet/models/cldm_v21.yaml'
+#     geojson_path = '/fast/zcb/data/PLATEAU_obj/gen3d_realCity/gen3d_realCity_testData/test02/footprint/footprint_test_2_selected.geojson'
+#     gml_root_path = '/fast/zcb/data/PLATEAU_obj/gml_geo'
+#     # obj_output_path = '/fast/zcb/data/PLATEAU_obj/obj_geo/obj_geo.obj'
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = '3'
-    # apply_uniformer = UniformerDetector()
+#     os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+#     # apply_uniformer = UniformerDetector()
 
-    # Create output directory
-    if not os.path.exists(output_tiff):
-        os.mkdir(output_tiff)
+#     # Create output directory
+#     if not os.path.exists(output_tiff):
+#         os.mkdir(output_tiff)
 
-    # Read footprints
-    polygons, names, origin_coords, pixel_sizes, footprint_images = read_geojson_and_rasterize(geojson_path)
+#     # Read footprints
+#     polygons, names, origin_coords, pixel_sizes, footprint_images = read_geojson_and_rasterize(geojson_path)
 
-    # Create model
-    model = create_model(cfg_file).cpu()
-    # model.load_state_dict(
-    #     load_state_dict(ckpt_file,
-    #                     location='cuda'))
-    # model = model.cuda()
-    # ddim_sampler = DDIMSampler(model)
+#     # Create model
+#     model = create_model(cfg_file).cpu()
+#     # model.load_state_dict(
+#     #     load_state_dict(ckpt_file,
+#     #                     location='cuda'))
+#     # model = model.cuda()
+#     # ddim_sampler = DDIMSampler(model)
 
-    # Clear OBJ file
-    if os.path.exists(obj_output_path):
-        os.remove(obj_output_path)
+#     # Clear OBJ file
+#     if os.path.exists(obj_output_path):
+#         os.remove(obj_output_path)
 
-    with open(obj_output_path, 'w'):
-        pass
+#     with open(obj_output_path, 'w'):
+#         pass
 
-    # Main loop
-    bldg_lod = 1
+#     # Main loop
+#     bldg_lod = 1
 
-    index_list = [i for i in range(len(footprint_images))]
-    random.shuffle(index_list)
+#     index_list = [i for i in range(len(footprint_images))]
+#     random.shuffle(index_list)
 
-    vertex_num = 0
-    ckpt_idx = 0
-    ddim_sampler = ""
+#     vertex_num = 0
+#     ckpt_idx = 0
+#     ddim_sampler = ""
 
-    acc_vertices, acc_faces = [], []
-    if bldg_lod == 2:
-        for i, idx in enumerate(index_list):
-            if not i % 10:
-                model.load_state_dict(
-                    load_state_dict(ckpt_files[ckpt_idx],
-                                    location='cuda'))
-                model = model.cuda()
-                ddim_sampler = DDIMSampler(model)
+#     acc_vertices, acc_faces = [], []
+#     if bldg_lod == 2:
+#         for i, idx in enumerate(index_list):
+#             if not i % 10:
+#                 model.load_state_dict(
+#                     load_state_dict(ckpt_files[ckpt_idx],
+#                                     location='cuda'))
+#                 model = model.cuda()
+#                 ddim_sampler = DDIMSampler(model)
 
-                ckpt_idx += 1
-                if ckpt_idx >= 5:
-                    ckpt_idx = 0
+#                 ckpt_idx += 1
+#                 if ckpt_idx >= 5:
+#                     ckpt_idx = 0
 
-            img_Geotrans = np.array(
-                [origin_coords[idx][0], pixel_sizes[idx][0], 0, origin_coords[idx][1], 0, pixel_sizes[idx][1]],
-                dtype=np.float32)
-            vertices, faces = inference(model, ddim_sampler, footprint_images[idx], img_Geotrans, polygons[idx][0], vertex_num)
+#             img_Geotrans = np.array(
+#                 [origin_coords[idx][0], pixel_sizes[idx][0], 0, origin_coords[idx][1], 0, pixel_sizes[idx][1]],
+#                 dtype=np.float32)
+#             vertices, faces = inference(model, ddim_sampler, footprint_images[idx], img_Geotrans, polygons[idx][0], vertex_num)
 
-            vertex_num = vertex_num + len(vertices)
-            acc_vertices.append(vertices)
-            acc_faces.append(faces)
-    elif bldg_lod == 1:
-        for idx, polygon in enumerate(polygons):
-            img_Geotrans = np.array(
-                [origin_coords[idx][0], pixel_sizes[idx][0], 0, origin_coords[idx][1], 0, pixel_sizes[idx][1]],
-                dtype=np.float32)
-            vertices, faces = bldg_lod1_gen_realCity(polygon[0], img_Geotrans, vertex_num)
+#             vertex_num = vertex_num + len(vertices)
+#             acc_vertices.append(vertices)
+#             acc_faces.append(faces)
+#     elif bldg_lod == 1:
+#         for idx, polygon in enumerate(polygons):
+#             img_Geotrans = np.array(
+#                 [origin_coords[idx][0], pixel_sizes[idx][0], 0, origin_coords[idx][1], 0, pixel_sizes[idx][1]],
+#                 dtype=np.float32)
+#             vertices, faces = bldg_lod1_gen_realCity(polygon[0], img_Geotrans, vertex_num)
 
-            vertex_num = vertex_num + len(vertices)
-            # print(vertex_num)
-            acc_vertices.append(vertices)
-            acc_faces.append(faces)
-    else:
-        raise Exception("Not valid LOD. Check again. ")
+#             vertex_num = vertex_num + len(vertices)
+#             # print(vertex_num)
+#             acc_vertices.append(vertices)
+#             acc_faces.append(faces)
+#     else:
+#         raise Exception("Not valid LOD. Check again. ")
 
-    bldg_gml = bldg_citygml_realCity(acc_vertices, acc_faces, bldg_lod)
-    save_citygml(bldg_gml, os.path.join(gml_root_path, f'bldg_test_lod{bldg_lod}.gml'))
+#     bldg_gml = bldg_citygml_realCity(acc_vertices, acc_faces, bldg_lod)
+#     save_citygml(bldg_gml, os.path.join(gml_root_path, f'bldg_test_lod{bldg_lod}.gml'))
 
-    return 1
+#     return 1
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
