@@ -15,7 +15,7 @@ from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 
 from utils.tools import *
-from bg_extract.bg_extract import inference_image_road, inference_image_vegetation
+from bg_extract.bg_extract import mm_road, mm_vegetation
 from bg_extract.road_centerline.road_tiff_polygonize import road_line_ext
 
 from pleatau_inference import inference, OBJ_output, bldg_lod1_gen_realCity, bldg_citygml_realCity, save_citygml, inference
@@ -155,7 +155,7 @@ class genRoad:
             im_data = np.transpose(im_data[:3, :, :], (1, 2, 0))
 
         x_min, y_min, resolusion_x, resolusion_y = im_Geotrans[0], im_Geotrans[3], im_Geotrans[1]*width/1024., im_Geotrans[5]*height/1024.
-        road_masks = inference_image_road(im_data, 'bg_extract/ckpt/p2cnet_road.pth')
+        road_masks = mm_road(im_data,'bg_extract/ckpt/mm_road/road.pth')
 
         road_link = road_line_ext(road_masks, [resolusion_x,resolusion_y], x_min, y_min)
         road_link = [line_merge(xx) for xx in road_link]
@@ -862,7 +862,7 @@ class genVegetation:
         x_min, y_min, resolusion_x, resolusion_y = im_Geotrans[0], im_Geotrans[3], im_Geotrans[1], im_Geotrans[5]
         self.roi_rect = box(x_min, y_min, x_min + width * resolusion_x, y_min + height * resolusion_y)
 
-        seg_contours = inference_image_vegetation(im_data, 'bg_extract/ckpt/yolov8_vegetation.pt')
+        seg_contours = mm_vegetation(im_data, 'bg_extract/ckpt/mm_vegetation/vegetation.pth')
         dst_poly = []
         for seg_contour in seg_contours:
             dst_poly.append(Polygon(seg_contour * [resolusion_x, resolusion_y] + [x_min, y_min]))
@@ -919,7 +919,7 @@ class genVegetation:
         x_min,y_min,resolusion_x,resolusion_y=im_Geotrans[0],im_Geotrans[3],im_Geotrans[1],im_Geotrans[5]
         self.roi_rect = box(x_min, y_min, x_min + width * resolusion_x, y_min + height * resolusion_y)
 
-        seg_contours = inference_image_vegetation(im_data, 'bg_extract/ckpt/yolov8_vegetation.pt')
+        seg_contours = mm_vegetation(im_data, 'bg_extract/ckpt/mm_vegetation/vegetation.pth')
         dst_poly = []
         for seg_contour in seg_contours:
             dst_poly.append(Polygon(seg_contour * [resolusion_x,resolusion_y]+[x_min,y_min]))
