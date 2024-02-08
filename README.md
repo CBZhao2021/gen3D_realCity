@@ -9,6 +9,6 @@ Function impression
 
 # TODO
 
-- Improve the vegetation and road extraction performance.
+- Improve the vegetation and road extraction performance. (Change from YOLO/P2CNet to InternImage)
 - Improve building generation speed and performance.
 - Revise the topological relationship of relief/road/cityFurniture/vegetation
