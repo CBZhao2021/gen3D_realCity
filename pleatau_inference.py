@@ -242,7 +242,7 @@ def arg():
     return args
 
 
-def inference(model, ddim_sampler, im_data, im_Geotrans, keypoint_array, vertex_num):
+def inference(model, ddim_sampler, im_data, im_Geotrans, keypoint_array, vertex_num, scale=2, seed=1024):
     # im_proj, im_Geotrans, im_data = read_tif(input_tiff)
     mask = get_mask(im_data)
     img = np.stack([mask, mask, mask], axis=2)
@@ -258,7 +258,7 @@ def inference(model, ddim_sampler, im_data, im_Geotrans, keypoint_array, vertex_
     control = torch.stack([control for _ in range(num_samples)], dim=0)
     control = einops.rearrange(control, 'b h w c -> b c h w').clone()
 
-    seed = -1
+    # seed = -1
     if seed == -1:
         seed = random.randint(0, 65535)
     seed_everything(seed)
@@ -282,7 +282,7 @@ def inference(model, ddim_sampler, im_data, im_Geotrans, keypoint_array, vertex_
 
     eta = 0.
     ddim_steps = 50
-    scale = random.uniform(1.5, 3.)
+    # scale = random.uniform(1.5, 3.)
     # scale = 2.
     samples, intermediates = ddim_sampler.sample(ddim_steps, num_samples, shape, cond, verbose=False, eta=eta,
                                                  unconditional_guidance_scale=scale, unconditional_conditioning=un_cond)
@@ -422,7 +422,8 @@ def bldg_citygml_realCity(vertices, faces, vertex_num=0, lod=2, srs_name="http:/
     
     elif lod == 2:
         for vs, fs in zip(vertices, faces):
-            z_min, z_max = np.min(vertices[:, 2]), np.max(vertices[:, 2])
+            vs = np.array(vs)
+            z_min, z_max = np.min(vs[:, 2]), np.max(vs[:, 2])
             
             building_member = etree.SubElement(cityModel, "{http://www.opengis.net/citygml/2.0}cityObjectMember")
             building = etree.SubElement(building_member, "{http://www.opengis.net/citygml/building/2.0}Building")
@@ -434,7 +435,9 @@ def bldg_citygml_realCity(vertices, faces, vertex_num=0, lod=2, srs_name="http:/
             for f in fs:
                 boundedBy = etree.SubElement(building,
                                                  "{http://www.opengis.net/citygml/building/2.0}boundedBy")
-                z_face = vertices[f][:, 2]
+                
+                zf = [idx - vertex_num - 1 for idx in f]
+                z_face = vs[zf][:, 2]
                 if (z_face - z_min < 1.).all():
                     typeSurface = etree.SubElement(boundedBy,
                                                     "{http://www.opengis.net/citygml/building/2.0}GroundSurface")

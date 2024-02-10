@@ -23,12 +23,12 @@ from geojson_reader import read_geojson_and_rasterize
 
 import argparse
 
-cfg_file = '/fast/zcb/data/PLATEAU_obj/gen3d_realCity/models/cldm_v21.yaml'
-ckpt_files = ['/fast/zcb/code/ControlNet/lightning_logs/plateau_dataEnhancement_type1/checkpoints/epoch=134-step=20999.ckpt',
-              '/fast/zcb/code/ControlNet/lightning_logs/plateau_dataEnhancement_type2/checkpoints/epoch=36-step=28999.ckpt',
-              '/fast/zcb/code/ControlNet/lightning_logs/plateau_dataEnhancement_type3/checkpoints/epoch=17-step=25999.ckpt',
-              '/fast/zcb/code/ControlNet/lightning_logs/plateau_dataEnhancement_NType5/checkpoints/epoch=95-step=18999.ckpt',
-              '/fast/zcb/code/ControlNet/lightning_logs/plateau_dataEnhancement_NType6/checkpoints/epoch=13-step=13999.ckpt']
+cfg_file = './models/cldm_v21.yaml'
+ckpt_files = ['./lightning_logs/plateau_dataEnhancement_type1/checkpoints/epoch=134-step=20999.ckpt',
+              './lightning_logs/plateau_dataEnhancement_type2/checkpoints/epoch=36-step=28999.ckpt',
+              './lightning_logs/plateau_dataEnhancement_type3/checkpoints/epoch=17-step=25999.ckpt',
+              './lightning_logs/plateau_dataEnhancement_NType5/checkpoints/epoch=95-step=18999.ckpt',
+              './lightning_logs/plateau_dataEnhancement_NType6/checkpoints/epoch=13-step=13999.ckpt']
 
 
 class genRelief:
@@ -511,7 +511,7 @@ class genBuilding:
 
             bldg_ratio_pt = []
             for i in range(1, len(bldg_ratio) + 1):
-                bldg_ratio_pt.append(int(sum(bldg_ratio_pt[:i]) * len(index_list)))
+                bldg_ratio_pt.append(int(sum(bldg_ratio[:i]) * len(index_list)))
 
 
             ckpt_idx = 0
@@ -536,7 +536,7 @@ class genBuilding:
                         [self.origin_coords[idx][0], self.pixel_sizes[idx][0], 0, self.origin_coords[idx][1], 0, self.pixel_sizes[idx][1]],
                         dtype=np.float32)
                     vertices, faces = inference(model, ddim_sampler, self.footprint_images[idx], img_Geotrans, self.polygons[idx][0],
-                                                vertex_num, self.mesh_scale, self.random_seed)
+                                                vertex_num, scale=self.mesh_scale, seed=self.random_seed)
 
                 OBJ_output(os.path.join(obj_root_path, 'test_lod2.obj'), vertices, faces, vertex_num, bldg_lod=2)
 
@@ -1116,7 +1116,8 @@ def main():
     mesh_road = gen_road.gen_road_run(road_lod=lod_road, device_lod=lod_device, gml_root=gml_root_path, road_width_range=[road_width_low, road_width_high], road_sub=road_width_sub)
     road_limit = gen_road.road_limit
     
-     # veg & relief
+    
+     # veg
     gen_vegetation = genVegetation(img_path=satellite_image, high_ratio=high_tree_ratio)
     mesh_vege = gen_vegetation.gen_vege_run(limit_road=None, limit_bdg=None, dense=2000, lod=lod_vegetation, gml_root=gml_root_path)
 
@@ -1135,82 +1136,9 @@ def main():
                                high_storey=storey_high)
     
     gen_building.run(vertex_num=len(combined_mesh.vertices), 
+                     lod_building=lod_building, 
                      obj_root_path=obj_root_path)
     
-    # polygons, names, origin_coords, pixel_sizes, footprint_images = read_geojson_and_rasterize(bldg_footprint)
-
-    # acc_vertices, acc_faces = [], []
-    # vertex_num = len(combined_mesh.vertices)
-    # print(f'bg_vertices num: {vertex_num}')
-    # # vertex_num = 0
-
-    # with open(os.path.join(obj_root_path, f'test_lod{lod_building}.obj'), 'a') as obj_file:
-    #     obj_file.write('\n')
-
-    # if lod_building == 1:
-    #     for idx, polygon in enumerate(polygons):
-    #         img_Geotrans = np.array(
-    #             [origin_coords[idx][0], pixel_sizes[idx][0], 0, origin_coords[idx][1], 0, pixel_sizes[idx][1]],
-    #             dtype=np.float32)
-    #         vertices, faces = bldg_lod1_gen_realCity(polygon[0], storey_low, storey_high, vertex_num)
-
-    #         OBJ_output(os.path.join(obj_root_path, 'test_lod1.obj'), vertices, faces, vertex_num)
-
-    #         vertex_num = vertex_num + len(vertices)
-    #         acc_vertices.append(vertices)
-    #         acc_faces.append(faces)
-
-    # elif lod_building == 2:
-    #     model = create_model(cfg_file).cpu()
-    #     index_list = [i for i in range(len(footprint_images))]
-    #     random.shuffle(index_list)
-        
-    #     bldg_type = [prob_t1, prob_t2, prob_t3, prob_t4, prob_t5, prob_t6]
-    #     if not sum(bldg_type) == 1:
-    #         print('Warning: Not full probabilities. Converting the remaining to Lod1-flat...')
-    #     elif sum(bldg_type) > 1:
-    #         raise Exception('Probabilities overflowed. Set the values with whose sum under 1. ')
-
-    #     bldg_ratio = [prob_t1, prob_t2, prob_t3, prob_t4, prob_t5, prob_t6]
-    #     bldg_ratio_pt = []
-    #     for i in range(1, len(bldg_ratio) + 1):
-    #         bldg_ratio_pt.append(int(sum(bldg_ratio_pt[:i]) * len(index_list)))
-
-    #     ckpt_idx = 0
-    #     ddim_sampler = ""
-    #     for i, idx in enumerate(index_list):
-    #         if not i or i in bldg_ratio_pt:
-    #             model.load_state_dict(
-    #                 load_state_dict(ckpt_files[ckpt_idx],
-    #                                 location='cuda'))
-    #             model = model.cuda()
-    #             ddim_sampler = DDIMSampler(model)
-
-    #             ckpt_idx += 1
-    #             if ckpt_idx >= 5:
-    #                 ckpt_idx = -1
-                    
-    #         if ckpt_idx == -1:
-    #             vertices, faces = bldg_lod1_gen_realCity(polygons[idx][0], 1, 50, vertex_num)
-
-    #         else:
-    #             img_Geotrans = np.array(
-    #                 [origin_coords[idx][0], pixel_sizes[idx][0], 0, origin_coords[idx][1], 0, pixel_sizes[idx][1]],
-    #                 dtype=np.float32)
-    #             vertices, faces = inference(model, ddim_sampler, footprint_images[idx], img_Geotrans, polygons[idx][0],
-    #                                         vertex_num, mesh_scale, random_seed)
-
-    #         OBJ_output(os.path.join(obj_root_path, 'test_lod2.obj'), vertices, faces, vertex_num, bldg_lod=2)
-
-    #         acc_vertices.append(vertices)
-    #         acc_faces.append([[coord + vertex_num for coord in face] for face in faces])
-    #         vertex_num = vertex_num + len(vertices)
-            
-    # else:
-    #     raise Exception('Only LOD 1 and 2 have been implemented for building. ')
-
-    # save_citygml(bldg_citygml_realCity(acc_vertices, acc_faces, lod=lod_building, vertex_num=len(combined_mesh.vertices), srs_name="http://www.opengis.net/def/crs/EPSG/0/" + crs), os.path.join(gml_root_path, 'building.gml'))
-
 
 if __name__ == '__main__':
     main()
