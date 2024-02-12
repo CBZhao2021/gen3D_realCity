@@ -435,6 +435,7 @@ def bldg_citygml_realCity(vertices, faces, vertex_num=0, lod=2, srs_name="http:/
             for f in fs:
                 boundedBy = etree.SubElement(building,
                                                  "{http://www.opengis.net/citygml/building/2.0}boundedBy")
+
                 zf = [idx - vertex_num - 1 for idx in f]
                 z_face = vs[zf][:, 2]
                 if (z_face - z_min < 1.).all():

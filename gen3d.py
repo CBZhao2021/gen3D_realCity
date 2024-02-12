@@ -23,7 +23,8 @@ from geojson_reader import read_geojson_and_rasterize
 
 import argparse
 
-ccfg_file = './models/cldm_v21.yaml'
+
+cfg_file = './models/cldm_v21.yaml'
 ckpt_files = ['./lightning_logs/plateau_dataEnhancement_type1/checkpoints/epoch=134-step=20999.ckpt',
               './lightning_logs/plateau_dataEnhancement_type2/checkpoints/epoch=36-step=28999.ckpt',
               './lightning_logs/plateau_dataEnhancement_type3/checkpoints/epoch=17-step=25999.ckpt',
@@ -1116,7 +1117,8 @@ def main():
     mesh_road = gen_road.gen_road_run(road_lod=lod_road, device_lod=lod_device, gml_root=gml_root_path, road_width_range=[road_width_low, road_width_high], road_sub=road_width_sub)
     road_limit = gen_road.road_limit
     
-     # veg & relief
+    
+     # veg
     gen_vegetation = genVegetation(img_path=satellite_image, high_ratio=high_tree_ratio)
     mesh_vege = gen_vegetation.gen_vege_run(limit_road=None, limit_bdg=None, dense=2000, lod=lod_vegetation, gml_root=gml_root_path)
 
@@ -1134,11 +1136,11 @@ def main():
                                low_storey=storey_low,
                                high_storey=storey_high)
 
-    gen_building.run(vertex_num=len(combined_mesh.vertices),
-                     lod_building = lod_building,
+    
+    gen_building.run(vertex_num=len(combined_mesh.vertices), 
+                     lod_building=lod_building, 
                      obj_root_path=obj_root_path)
-
-
+    
 
 if __name__ == '__main__':
     main()
