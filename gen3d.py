@@ -15,13 +15,14 @@ from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 
 from utils.tools import *
-from bg_extract.bg_extract import inference_image_road, inference_image_vegetation
+from bg_extract.bg_extract import mm_road, mm_vegetation
 from bg_extract.road_centerline.road_tiff_polygonize import road_line_ext
 
 from pleatau_inference import inference, OBJ_output, bldg_lod1_gen_realCity, bldg_citygml_realCity, save_citygml, inference
 from geojson_reader import read_geojson_and_rasterize
 
 import argparse
+
 
 cfg_file = './models/cldm_v21.yaml'
 ckpt_files = ['./lightning_logs/plateau_dataEnhancement_type1/checkpoints/epoch=134-step=20999.ckpt',
@@ -154,8 +155,8 @@ class genRoad:
             channel, height, width = im_data.shape
             im_data = np.transpose(im_data[:3, :, :], (1, 2, 0))
 
-        x_min, y_min, resolusion_x, resolusion_y = im_Geotrans[0], im_Geotrans[3], im_Geotrans[1]*width/1024., im_Geotrans[5]*height/1024.
-        road_masks = inference_image_road(im_data, 'bg_extract/ckpt/p2cnet_road.pth')
+        x_min, y_min, resolusion_x, resolusion_y = im_Geotrans[0], im_Geotrans[3], im_Geotrans[1], im_Geotrans[5]
+        road_masks = mm_road(im_data,'bg_extract/ckpt/mm_road/road.pth')
 
         road_link = road_line_ext(road_masks, [resolusion_x,resolusion_y], x_min, y_min)
         road_link = [line_merge(xx) for xx in road_link]
@@ -862,7 +863,7 @@ class genVegetation:
         x_min, y_min, resolusion_x, resolusion_y = im_Geotrans[0], im_Geotrans[3], im_Geotrans[1], im_Geotrans[5]
         self.roi_rect = box(x_min, y_min, x_min + width * resolusion_x, y_min + height * resolusion_y)
 
-        seg_contours = inference_image_vegetation(im_data, 'bg_extract/ckpt/yolov8_vegetation.pt')
+        seg_contours = mm_vegetation(im_data, 'bg_extract/ckpt/mm_vegetation/vegetation.pth')
         dst_poly = []
         for seg_contour in seg_contours:
             dst_poly.append(Polygon(seg_contour * [resolusion_x, resolusion_y] + [x_min, y_min]))
@@ -919,7 +920,7 @@ class genVegetation:
         x_min,y_min,resolusion_x,resolusion_y=im_Geotrans[0],im_Geotrans[3],im_Geotrans[1],im_Geotrans[5]
         self.roi_rect = box(x_min, y_min, x_min + width * resolusion_x, y_min + height * resolusion_y)
 
-        seg_contours = inference_image_vegetation(im_data, 'bg_extract/ckpt/yolov8_vegetation.pt')
+        seg_contours = mm_vegetation(im_data, 'bg_extract/ckpt/mm_vegetation/vegetation.pth')
         dst_poly = []
         for seg_contour in seg_contours:
             dst_poly.append(Polygon(seg_contour * [resolusion_x,resolusion_y]+[x_min,y_min]))
@@ -1091,7 +1092,7 @@ def main():
     crs = params.crs
     
     gml_root_path = params.output_path
-    obj_root_path = '../obj_geo'
+    obj_root_path = ''
 
     lod_building = params.building_lod
     storey_low, storey_high = params.building_storey
@@ -1128,12 +1129,13 @@ def main():
     combined_mesh.export(os.path.join(obj_root_path, f'test_lod{lod_building}.obj'))
 
 
-    # building
+    # # building
     bldg_type = [prob_t1, prob_t2, prob_t3, prob_t4, prob_t5, prob_t6] if lod_building == 2 else [1., 0., 0., 0., 0., 0.]
-    gen_building = genBuilding(bldg_footprint_path=bldg_footprint, 
-                               probabilities=bldg_type, 
-                               low_storey=storey_low, 
+    gen_building = genBuilding(bldg_footprint_path=bldg_footprint,
+                               probabilities=bldg_type,
+                               low_storey=storey_low,
                                high_storey=storey_high)
+
     
     gen_building.run(vertex_num=len(combined_mesh.vertices), 
                      lod_building=lod_building, 
