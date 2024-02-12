@@ -9,8 +9,7 @@ Function impression
 
 Command example:
 ```
-python gen3d.py --input gen3d_realCity_testData/mapbox/test02/footprint/footprint_test_2_selected.geojson --img gen3d_realCity_testData/mapbox/tes
-t02/satellite_image/test02_0_3.tiff --building_lod 2 --road_width 2 2
+python gen3d.py --input gen3d_realCity_testData/mapbox/test02/footprint/footprint_test_2_selected.geojson --img gen3d_realCity_testData/mapbox/test02/satellite_image/test02_0_3.tiff --building_lod 2 --road_width 2 2
 ```
 
 # TODO
