@@ -5,7 +5,13 @@ Input building footprint and generate .obj and CityGML(.gml) files for real city
 
 Function impression
 ----------------
-![Function impression](./res_example/total_image1.jpg)
+![Function impression](./res_example/total_image2.jpg)
+
+Command example:
+```
+python gen3d.py --input gen3d_realCity_testData/mapbox/test02/footprint/footprint_test_2_selected.geojson --img gen3d_realCity_testData/mapbox/tes
+t02/satellite_image/test02_0_3.tiff --building_lod 2 --road_width 2 2
+```
 
 # TODO
 
