@@ -1092,7 +1092,7 @@ def main():
     crs = params.crs
     
     gml_root_path = params.output_path
-    obj_root_path = ''
+    obj_root_path = '../obj_geo'
 
     lod_building = params.building_lod
     storey_low, storey_high = params.building_storey

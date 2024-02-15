@@ -378,10 +378,10 @@ def bldg_citygml_realCity(vertices, faces, vertex_num=0, lod=2, srs_name="http:/
     cityModel = etree.Element("{http://www.opengis.net/citygml/2.0}CityModel", nsmap=nsmap)
 
     # bounding
-    total_vertices = []
-    for building in np.array(vertices):
-        total_vertices.extend(building)
-    total_vertices = np.vstack(total_vertices)
+    # total_vertices = []
+    # for building in np.array(vertices):
+    #     total_vertices.extend(building)
+    total_vertices = np.vstack(vertices)
     x_max, y_max, z_max = np.max(total_vertices, axis=0)
     x_min, y_min, z_min = np.min(total_vertices, axis=0)
 
