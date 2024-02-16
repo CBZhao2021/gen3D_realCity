@@ -1,6 +1,6 @@
 import os
 import cv2
-import trimesh
+import trimesh, pyproj
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -130,12 +130,25 @@ def polygon_iou(polygon1, polygon2):
     iou = intersection / union
     return iou
 
-def polygon_to_mesh(polygon):
+
+def polygon_to_mesh(polygon, add_relief=True, gen_relief=None, srs_epsg='EPSG:30169'):
     exterior_coords = np.array(polygon.exterior.coords)
     vertices = np.hstack((exterior_coords, np.zeros((exterior_coords.shape[0], 1))))
 
     triangles = earcut(exterior_coords.flatten(), dim=2)
     faces = np.reshape(triangles, (-1, 3))
+    
+    if add_relief:
+        source_crs = pyproj.CRS(srs_epsg)
+        target_crs = pyproj.CRS('EPSG:6668')
+        crs_transformer = pyproj.Transformer.from_crs(source_crs, target_crs)
+        
+        for vertex in vertices:
+            lat, lon = crs_transformer.transform(vertex[1], vertex[0])
+            index = [int((lat - gen_relief.dem_geotrans[3]) / gen_relief.dem_geotrans[5]), int((lon - gen_relief.dem_geotrans[0]) / gen_relief.dem_geotrans[1])]
+            relief_z = gen_relief.dem_model[index[0], index[1]] + 0.05
+            
+            vertex[2] += relief_z
 
     res_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
     return res_mesh

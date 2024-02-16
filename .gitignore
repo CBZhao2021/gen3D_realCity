@@ -10,4 +10,17 @@ config.py
 
 __pycache__
 
+bg_extract/__pycache__
+
+
 *.gml
+
+*.xml
+
+dem_test.py
+
+*.pyc
+
+*.obj
+
+*.tiff

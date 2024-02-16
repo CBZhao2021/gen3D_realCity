@@ -1,6 +1,6 @@
 import glob
 import cv2
-import os
+import os, re
 import trimesh
 import random
 import numpy as np
@@ -22,6 +22,8 @@ from pleatau_inference import inference, OBJ_output, bldg_lod1_gen_realCity, bld
 from geojson_reader import read_geojson_and_rasterize
 
 import argparse
+import pyproj
+from osgeo import gdal, osr
 
 
 cfg_file = './models/cldm_v21.yaml'
@@ -34,13 +36,17 @@ ckpt_files = ['./lightning_logs/plateau_dataEnhancement_type1/checkpoints/epoch=
 
 class genRelief:
     def __init__(self,
-                 reilef_src_root='./data_src/src_2d/dem/crop_resize',
+                 relief_src_root='./data_src/src_2d/dem/crop_resize',
                  height_limit=5.,
+                 relief_lod=1, 
                  **kwargs):
-        self.relief_src_root = reilef_src_root
+        self.relief_src_root = relief_src_root
         self.height_limit = height_limit
+        self.relief_lod = relief_lod
 
         self.relief_src_path = glob.glob(os.path.join(self.relief_src_root, '*.jpg'))
+        self.dem_model = None
+        self.dem_geotrans = None
         self.points_relief = None
         self.mesh_relief = []
 
@@ -64,6 +70,88 @@ class genRelief:
         self.mesh_relief = trimesh.Trimesh(vertices=points_reshape, faces=faces)
         self.points_relief = points
         return self.mesh_relief
+    
+    
+    def gen_realCity_relief_lod1(self, img_path, dem_path='./data_src/kashiwa_dem_float.tiff', img_epsg_crs='EPSG:30169'):
+        bg_img_data = gdal.Open(img_path)
+        cols = bg_img_data.RasterXSize
+        rows = bg_img_data.RasterYSize
+        im_Geotrans = (bg_img_data.GetGeoTransform())
+        # print(im_Geotrans)
+        
+        srs_epsg = img_epsg_crs
+        
+        source_crs = pyproj.CRS(srs_epsg)
+        target_crs = pyproj.CRS('EPSG:6668')
+        crs_transformer = pyproj.Transformer.from_crs(source_crs, target_crs)
+        crs_back_transformer = pyproj.Transformer.from_crs(target_crs, source_crs)
+        
+        lower_corner = crs_transformer.transform(im_Geotrans[3], im_Geotrans[0])
+        higher_corner = crs_transformer.transform(im_Geotrans[3] + rows * im_Geotrans[5], im_Geotrans[0] + cols * im_Geotrans[1])
+        
+        
+        dem_data = gdal.Open(dem_path)
+        dem_Geotrans = (dem_data.GetGeoTransform())
+        lower_corner_index = [int((lower_corner[1] - dem_Geotrans[0]) / dem_Geotrans[1]), int((lower_corner[0] - dem_Geotrans[3]) / dem_Geotrans[5])]
+        higher_corner_index = [int((higher_corner[1] - dem_Geotrans[0]) / dem_Geotrans[1]), int((higher_corner[0] - dem_Geotrans[3]) / dem_Geotrans[5])]
+        if not 0 <= lower_corner_index[0] < dem_data.RasterXSize and 0 <= lower_corner_index[1] < dem_data.RasterYSize and 0 <= higher_corner_index[0] < dem_data.RasterXSize and 0 <= higher_corner_index[1] < dem_data.RasterYSize:
+            raise Exception('Not implemented area included. Abort. ')
+        
+        print(lower_corner_index, higher_corner_index)
+        dem_shape = [higher_corner_index[i] - lower_corner_index[i] for i in range(2)]  # cols, rows
+        dem_array = dem_data.ReadAsArray(lower_corner_index[0], lower_corner_index[1], dem_shape[0], dem_shape[1])
+        self.dem_model = dem_data.ReadAsArray(0, 0, dem_data.RasterXSize, dem_data.RasterYSize)
+        self.dem_geotrans = dem_Geotrans
+        
+        dem_origin = [dem_Geotrans[0] + lower_corner_index[0] * dem_Geotrans[1], dem_Geotrans[3] + lower_corner_index[1] * dem_Geotrans[5]]
+        dem_points = []
+        for row in range(dem_shape[1]):
+            for col in range(dem_shape[0]):
+                y, x = crs_back_transformer.transform(dem_origin[1] + (row + 0.5) * dem_Geotrans[5], dem_origin[0] + (col + 0.5) * dem_Geotrans[1])
+                # x = dem_origin[0] + (col + 0.5) * dem_Geotrans[1]
+                # y = dem_origin[1] + (row + 0.5) * dem_Geotrans[5]
+                elevation = dem_array[row, col]
+                
+                dem_points.append((x, y, elevation))
+                
+        dem_points_array = np.array(dem_points)
+        delaunay_points_array = dem_points_array[:, :2]
+        delaunay_tri = Delaunay(delaunay_points_array)
+        dem_faces = delaunay_tri.simplices
+        
+        self.mesh_relief = trimesh.Trimesh(vertices=dem_points_array, faces=dem_faces)
+        self.points_relief = dem_points_array
+        
+        return self.mesh_relief
+        
+        # cropped_dem = 'dem_test.tiff'
+        # driver = gdal.GetDriverByName("GTiff")
+        # cropped_dem_dataset = driver.Create(cropped_dem, dem_shape[0], dem_shape[1], 1, gdal.GDT_Byte)
+        # srs = osr.SpatialReference()
+        # srs.ImportFromEPSG(6668)
+        # cropped_dem_dataset.SetGeoTransform((dem_Geotrans[0] + lower_corner_index[0] * dem_Geotrans[1], dem_Geotrans[1], 0, dem_Geotrans[3] + lower_corner_index[1] * dem_Geotrans[5], 0, dem_Geotrans[5]))
+        
+        # cropped_dem_dataset.GetRasterBand(1).WriteArray(dem_array, 0, 0)
+        # cropped_dem_dataset.SetProjection(srs.ExportToWkt())
+        
+        # print(cols, rows, srs_epsg, im_Geotrans)
+        # print(lower_corner, higher_corner)
+    
+    
+    def run(self, img_path, relief_lod=1, save_gml=True, gml_root='', dem_path='./data_src/kashiwa_dem_float.tiff', img_epsg_crs='EPSG:30169'):
+        if relief_lod == 1:
+            self.gen_realCity_relief_lod1(img_path=img_path)
+        else:
+            raise Exception('Only LOD 1 relief implemented. ')
+        
+        if save_gml:
+            relief_gml = self.create_citygml_relief([self.mesh_relief], relief_lod=1,
+                                                    srs_name="http://www.opengis.net/def/crs/EPSG/0/30169",
+                                                    srsDimension="3")
+            save_citygml(relief_gml, os.path.join(gml_root, 'relief.gml'))
+        
+        return [self.mesh_relief]
+        
 
     def create_citygml_relief(self, relief, relief_lod=1, srs_name="http://www.opengis.net/def/crs/EPSG/0/30169",
                               srsDimension="3"):
@@ -169,21 +257,21 @@ class genRoad:
 
         return self.roi_road
 
-    def gen_mesh_road(self, shp, buffer):
+    def gen_mesh_road(self, shp, buffer, add_relief=True, gen_relief=None, srs_epsg='EPSG:30169'):
         self.mesh_road = []
         self.buffered_line = shp.buffer(buffer)
         self.road_limit = self.buffered_line
 
         for poly_road in self.buffered_line:
             if isinstance(poly_road, Polygon):
-                tmp_mesh = polygon_to_mesh(poly_road)
+                tmp_mesh = polygon_to_mesh(poly_road, gen_relief=gen_relief)
                 self.mesh_road.append(tmp_mesh)
             elif isinstance(poly_road, MultiPolygon):
                 for poly_road_tmp in poly_road.geoms:
-                    tmp_mesh = polygon_to_mesh(poly_road_tmp)
+                    tmp_mesh = polygon_to_mesh(poly_road_tmp, gen_relief=gen_relief)
                     self.mesh_road.append(tmp_mesh)
 
-    def gen_mesh_road_sub(self, shp, width, width_sub):
+    def gen_mesh_road_sub(self, shp, width, width_sub, add_relief=True, gen_relief=None, srs_epsg='EPSG:30169'):
         left_sub, right_sub = [], []
         for tmp_road in shp:
             if isinstance(tmp_road, LineString):
@@ -203,27 +291,27 @@ class genRoad:
 
         for poly_road in left_sub:
             if isinstance(poly_road, Polygon):
-                tmp_mesh = polygon_to_mesh(poly_road)
+                tmp_mesh = polygon_to_mesh(poly_road, gen_relief=gen_relief)
                 self.mesh_road.append(tmp_mesh)
             elif isinstance(poly_road, MultiPolygon):
                 for poly_road_tmp in poly_road.geoms:
-                    tmp_mesh = polygon_to_mesh(poly_road_tmp)
+                    tmp_mesh = polygon_to_mesh(poly_road_tmp, gen_relief=gen_relief)
                     self.mesh_road.append(tmp_mesh)
 
         for poly_road in right_sub:
             if isinstance(poly_road, Polygon):
-                tmp_mesh = polygon_to_mesh(poly_road)
+                tmp_mesh = polygon_to_mesh(poly_road, gen_relief=gen_relief)
                 self.mesh_road.append(tmp_mesh)
             elif isinstance(poly_road, MultiPolygon):
                 for poly_road_tmp in poly_road.geoms:
-                    tmp_mesh = polygon_to_mesh(poly_road_tmp)
+                    tmp_mesh = polygon_to_mesh(poly_road_tmp, gen_relief=gen_relief)
                     self.mesh_road.append(tmp_mesh)
 
     def generate_poles_along_line(self, line, interval):
         length = line.length
         return [line.interpolate(distance) for distance in range(0, int(length), interval)]
 
-    def gen_device_lod1(self, shp):
+    def gen_device_lod1(self, shp, add_relief=True, gen_relief=None, srs_epsg='EPSG:30169'):
         self.mesh_device = []
 
         left_sub = []
@@ -240,6 +328,10 @@ class genRoad:
         for tmp_road in left_sub:
             tele_pole_point += self.generate_poles_along_line(tmp_road, 20)
 
+        source_crs = pyproj.CRS(srs_epsg)
+        target_crs = pyproj.CRS('EPSG:6668')
+        crs_transformer = pyproj.Transformer.from_crs(source_crs, target_crs)
+        
         for x in range(len(tele_pole_point)):
             half_side = 0.1
             tele_pole_point_xy = [tele_pole_point[x].x, tele_pole_point[x].y]
@@ -253,10 +345,19 @@ class genRoad:
             tele_pole_square = Polygon(tele_pole_square_coords)
             vertices, faces = polygon_to_mesh_3D(tele_pole_square)
             tmp_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-            if not tele_pole_point[x].within(self.road_limit).any():
-                self.mesh_device.append(tmp_mesh)
 
-    def gen_device_lod2(self, shp, pole_ratio=10):
+            if add_relief:
+                device_centroid_xy = np.mean(np.array(vertices)[:, :2], axis=0)
+                lat, lon = crs_transformer.transform(device_centroid_xy[1], device_centroid_xy[0])
+                index = [int((lat - gen_relief.dem_geotrans[3]) / gen_relief.dem_geotrans[5]), int((lon - gen_relief.dem_geotrans[0]) / gen_relief.dem_geotrans[1])]
+                relief_z = gen_relief.dem_model[index[0], index[1]]
+                # print(device_centroid_xy, relief_z, lat, lon, index)
+            
+            if not tele_pole_point[x].within(self.road_limit).any():
+                self.mesh_device.append(tmp_mesh.apply_translation([0, 0, relief_z]))
+                
+
+    def gen_device_lod2(self, shp, pole_ratio=10, add_relief=True, gen_relief=None, srs_epsg='EPSG:30169'):
         self.mesh_device = []
         self.light_ratio = 1. / pole_ratio
 
@@ -289,13 +390,26 @@ class genRoad:
         for tmp_road in left_sub:
             tele_pole_point += self.generate_poles_along_line(tmp_road, 20)
 
+
+        source_crs = pyproj.CRS(srs_epsg)
+        target_crs = pyproj.CRS('EPSG:6668')
+        crs_transformer = pyproj.Transformer.from_crs(source_crs, target_crs)
+
         res_tele_pole = []
         for x in range(len(tele_pole_point)):
             tmp_tele_pole_mesh = tele_pole_mesh.copy()
             tele_pole_point_xy = [tele_pole_point[x].x, tele_pole_point[x].y]
+            
+            if add_relief:
+                lat, lon = crs_transformer.transform(tele_pole_point_xy[1], tele_pole_point_xy[0])
+                index = [int((lat - gen_relief.dem_geotrans[3]) / gen_relief.dem_geotrans[5]), int((lon - gen_relief.dem_geotrans[0]) / gen_relief.dem_geotrans[1])]
+                relief_z = gen_relief.dem_model[index[0], index[1]]
+                # print(tele_pole_point_xy, lat, lon, index, relief_z, tele_pole_mesh_zmin)
+                # tele_pole_mesh_zmin -= relief_z
+            
             trans_tele_mesh = [tele_pole_point_xy[0] - tele_pole_mesh_xy[0],
                                tele_pole_point_xy[1] - tele_pole_mesh_xy[1],
-                               -tele_pole_mesh_zmin]
+                               relief_z - tele_pole_mesh_zmin]
             if not tele_pole_point[x].within(self.road_limit).any():
                 res_tele_pole.append(tmp_tele_pole_mesh.apply_translation(trans_tele_mesh))
 
@@ -304,9 +418,17 @@ class genRoad:
                                int(len(res_tele_pole) * self.light_ratio)):
             tmp_traf_light_mesh = traf_light_mesh.copy()
             tele_pole_point_xy = res_tele_pole[x].centroid[:2]
+            
+            if add_relief:
+                lat, lon = crs_transformer.transform(tele_pole_point_xy[1], tele_pole_point_xy[0])
+                index = [int((lat - gen_relief.dem_geotrans[3]) / gen_relief.dem_geotrans[5]), int((lon - gen_relief.dem_geotrans[0]) / gen_relief.dem_geotrans[1])]
+                relief_z = gen_relief.dem_model[index[0], index[1]]
+                # print(tele_pole_point_xy, lat, lon, index, relief_z, traf_light_mesh_zmin)
+                # tele_pole_mesh_zmin -= relief_z
+            
             trans_traf_mesh = [tele_pole_point_xy[0] - traf_light_mesh_xy[0],
                                tele_pole_point_xy[1] - traf_light_mesh_xy[1],
-                               tele_pole_mesh_h - traf_light_mesh_zmin]
+                               relief_z - traf_light_mesh_zmin]
             res_traf_light.append(tmp_traf_light_mesh.apply_translation(trans_traf_mesh))
 
         self.mesh_device += res_tele_pole + res_traf_light
@@ -419,20 +541,24 @@ class genRoad:
             tmp_vertices[:, 2] += z_points_interpolate[i] + 0.01
             tmp_mesh.vertices = tmp_vertices
 
-    def gen_road_run(self, road_lod=1, device_lod=2, points_relief=None, save_gml=True, gml_root='', road_width_range=[1, 10], road_sub=0.1):
+    def gen_road_run(self, road_lod=1, device_lod=1, save_gml=True, gml_root='', road_width_range=[1, 10], road_sub=0.1, add_relief=True, gen_relief=None, srs_epsg='EPSG:30169'):
         self.width = random.randint(road_width_range[0], road_width_range[1])
         self.width_sub = road_sub
         
-        if road_lod == 1:
-            self.gen_mesh_road(self.roi_road, self.width)
-            self.gen_mesh_road_sub(self.roi_road, self.width, self.width_sub)
+        if road_lod >= 1:
+            self.gen_mesh_road(self.roi_road, self.width, add_relief=add_relief, gen_relief=gen_relief, srs_epsg=srs_epsg)
+        if road_lod == 2:
+            self.gen_mesh_road_sub(self.roi_road, self.width, self.width_sub, add_relief=add_relief, gen_relief=gen_relief, srs_epsg=srs_epsg)
+            
         if device_lod == 1:
-            self.gen_device_lod1(self.roi_road)
+            self.gen_device_lod1(self.roi_road, add_relief=add_relief, gen_relief=gen_relief, srs_epsg=srs_epsg)
         elif device_lod == 2:
-            self.gen_device_lod2(self.roi_road)
-        road_ori = self.mesh_road.copy()
+            self.gen_device_lod2(self.roi_road, add_relief=add_relief, gen_relief=gen_relief, srs_epsg=srs_epsg)
         self.mesh_road += self.mesh_device
-        self.add_relief(points_relief)
+        
+        # self.add_relief(points_relief)
+        
+        road_ori = self.mesh_road.copy()
         if save_gml:
             road_gml = self.create_citygml_road(road_ori)
             save_citygml(road_gml, os.path.join(gml_root, 'road.gml'))
@@ -479,19 +605,33 @@ class genBuilding:
     #     self.roi_building = self.bdg_src[self.bdg_src.within(self.roi_rect)]
     #     return self.roi_building
     
-    def run(self, lod_building=1, gml_root='', obj_root_path='', save_gml=True, crs='30169', vertex_num=0):
+    def run(self, gen_relief=None, add_relief=True, srs_epsg='EPSG:30169', lod_building=1, gml_root='', obj_root_path='', save_gml=True, crs='30169', vertex_num=0):
         acc_vertices, acc_faces = [], []
         background_vertices_num = vertex_num
         
         with open(os.path.join(obj_root_path, f'test_lod{lod_building}.obj'), 'a') as obj_file:
             obj_file.write('\n')
             
+        source_crs = pyproj.CRS(srs_epsg)
+        target_crs = pyproj.CRS('EPSG:6668')
+        crs_transformer = pyproj.Transformer.from_crs(source_crs, target_crs)
+        
         if lod_building == 1:
             for idx, polygon in enumerate(self.polygons):
                 img_Geotrans = np.array(
                     [self.origin_coords[idx][0], self.pixel_sizes[idx][0], 0, self.origin_coords[idx][1], 0, self.pixel_sizes[idx][1]],
                     dtype=np.float32)
                 vertices, faces = bldg_lod1_gen_realCity(polygon[0], self.low_storey, self.high_storey, vertex_num)
+                
+                if add_relief:
+                    bldg_array = np.array(vertices)
+                    # bldg_zmin = np.min(bldg_array[:, 2])
+                    bldg_centroid = np.mean(bldg_array, axis=0)
+                    
+                    lat, lon = crs_transformer.transform(bldg_centroid[1], bldg_centroid[0])
+                    index = [int((lat - gen_relief.dem_geotrans[3]) / gen_relief.dem_geotrans[5]), int((lon - gen_relief.dem_geotrans[0]) / gen_relief.dem_geotrans[1])]
+                    relief_z = gen_relief.dem_model[index[0], index[1]]
+                    vertices = [[v[0], v[1], v[2] + relief_z] for v in vertices]
 
                 OBJ_output(os.path.join(obj_root_path, 'test_lod1.obj'), vertices, faces, vertex_num)
 
@@ -538,6 +678,16 @@ class genBuilding:
                         dtype=np.float32)
                     vertices, faces = inference(model, ddim_sampler, self.footprint_images[idx], img_Geotrans, self.polygons[idx][0],
                                                 vertex_num, scale=self.mesh_scale, seed=self.random_seed)
+
+                if add_relief:
+                    bldg_array = np.array(vertices)
+                    # bldg_zmin = np.min(bldg_array[:, 2])
+                    bldg_centroid = np.mean(bldg_array, axis=0)
+                    
+                    lat, lon = crs_transformer.transform(bldg_centroid[1], bldg_centroid[0])
+                    index = [int((lat - gen_relief.dem_geotrans[3]) / gen_relief.dem_geotrans[5]), int((lon - gen_relief.dem_geotrans[0]) / gen_relief.dem_geotrans[1])]
+                    relief_z = gen_relief.dem_model[index[0], index[1]]
+                    vertices = [[v[0], v[1], v[2] + relief_z] for v in vertices]
 
                 OBJ_output(os.path.join(obj_root_path, 'test_lod2.obj'), vertices, faces, vertex_num, bldg_lod=2)
 
@@ -847,7 +997,7 @@ class genVegetation:
         # self.low_ratio = low_ratio
         self.high_ratio = high_ratio
 
-    def gen_tree_mesh_lod1(self, limit_road, limit_bdg, dense=200):
+    def gen_tree_mesh_lod1(self, limit_road, limit_bdg, dense=200, add_relief=True, gen_relief=None, srs_epsg='EPSG:30169'):
         self.mesh_tree = []
 
         im_proj, im_Geotrans, im_data = read_tif(self.img_path)
@@ -887,24 +1037,38 @@ class genVegetation:
         tar_xy = tar_xy[tmp_idx]
 
         high_num = int(len(tar_xy) * self.high_ratio)
+        
+        source_crs = pyproj.CRS(srs_epsg)
+        target_crs = pyproj.CRS('EPSG:6668')
+        crs_transformer = pyproj.Transformer.from_crs(source_crs, target_crs)
 
         for i in range(high_num):
             tree_poly = Point(tar_xy[i]).buffer(random.uniform(1., 3.))
             tree_height = random.uniform(6., 12.)
+            
+            if add_relief:
+                lat, lon = crs_transformer.transform(tar_xy[i, 1], tar_xy[i, 0])
+                index = [int((lat - gen_relief.dem_geotrans[3]) / gen_relief.dem_geotrans[5]), int((lon - gen_relief.dem_geotrans[0]) / gen_relief.dem_geotrans[1])]
+                relief_z = gen_relief.dem_model[index[0], index[1]]
 
             vertices, faces = polygon_to_mesh_3D(tree_poly, tree_height)
             tmp_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-            self.mesh_tree.append(tmp_mesh)
+            self.mesh_tree.append(tmp_mesh.apply_translation([0, 0, relief_z]))
 
         for i in range(high_num, len(tar_xy)):
             tree_poly = Point(tar_xy[i]).buffer(random.uniform(0.5, 2.))
             tree_height = random.uniform(2., 6.)
+            
+            if add_relief:
+                lat, lon = crs_transformer.transform(tar_xy[i, 1], tar_xy[i, 0])
+                index = [int((lat - gen_relief.dem_geotrans[3]) / gen_relief.dem_geotrans[5]), int((lon - gen_relief.dem_geotrans[0]) / gen_relief.dem_geotrans[1])]
+                relief_z = gen_relief.dem_model[index[0], index[1]]
 
             vertices, faces = polygon_to_mesh_3D(tree_poly, tree_height)
             tmp_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-            self.mesh_tree.append(tmp_mesh)
+            self.mesh_tree.append(tmp_mesh.apply_translation([0, 0, relief_z]))
 
-    def gen_tree_mesh_lod2(self, limit_bdg, limit_road, dense):
+    def gen_tree_mesh_lod2(self, limit_bdg, limit_road, dense, add_relief=True, gen_relief=None, srs_epsg='EPSG:30169'):
         self.mesh_tree = []
 
         im_proj, im_Geotrans, im_data = read_tif(self.img_path)
@@ -951,11 +1115,21 @@ class genVegetation:
         high_idx_ = random.choices(list(range(len(high_idx))), k=high_num)
         low_idx_ = random.choices(list(range(len(low_idx))), k=low_num)
 
+        source_crs = pyproj.CRS(srs_epsg)
+        target_crs = pyproj.CRS('EPSG:6668')
+        crs_transformer = pyproj.Transformer.from_crs(source_crs, target_crs)
+        
         for x, i in enumerate(high_idx_):
             tmp_mesh = trimesh.load(os.path.join(self.vege_root, high_idx[i] + '.obj'))
             tmp_mesh = tmp_mesh.dump(concatenate=True) if isinstance(tmp_mesh, trimesh.Scene) else tmp_mesh
             tmp_mesh_xy = tmp_mesh.centroid[:2]
-            tmp_mesh_zmin = np.min(tmp_mesh.vertices[:, 2])
+            
+            if add_relief:
+                lat, lon = crs_transformer.transform(tar_xy[x, 1], tar_xy[x, 0])
+                index = [int((lat - gen_relief.dem_geotrans[3]) / gen_relief.dem_geotrans[5]), int((lon - gen_relief.dem_geotrans[0]) / gen_relief.dem_geotrans[1])]
+                relief_z = gen_relief.dem_model[index[0], index[1]]
+                
+            tmp_mesh_zmin = np.min(tmp_mesh.vertices[:, 2]) - relief_z
 
             tmp_trans = [tar_xy[x, 0] - tmp_mesh_xy[0], tar_xy[x, 1] - tmp_mesh_xy[1], -tmp_mesh_zmin]
             self.mesh_tree.append(tmp_mesh.apply_translation(tmp_trans))
@@ -963,7 +1137,13 @@ class genVegetation:
             tmp_mesh = trimesh.load(os.path.join(self.vege_root, low_idx[i] + '.obj'))
             tmp_mesh = tmp_mesh.dump(concatenate=True) if isinstance(tmp_mesh, trimesh.Scene) else tmp_mesh
             tmp_mesh_xy = tmp_mesh.centroid[:2]
-            tmp_mesh_zmin = np.min(tmp_mesh.vertices[:, 2])
+            
+            if add_relief:
+                lat, lon = crs_transformer.transform(tar_xy[x + high_num, 1], tar_xy[x + high_num, 0])
+                index = [int((lat - gen_relief.dem_geotrans[3]) / gen_relief.dem_geotrans[5]), int((lon - gen_relief.dem_geotrans[0]) / gen_relief.dem_geotrans[1])]
+                relief_z = gen_relief.dem_model[index[0], index[1]]
+                
+            tmp_mesh_zmin = np.min(tmp_mesh.vertices[:, 2]) - relief_z
 
             tmp_trans = [tar_xy[x + high_num, 0] - tmp_mesh_xy[0], tar_xy[x + high_num, 1] - tmp_mesh_xy[1],
                          -tmp_mesh_zmin]
@@ -1028,17 +1208,17 @@ class genVegetation:
 
         return cityModel
 
-    def gen_vege_run(self, limit_road, limit_bdg, points_relief=None,
+    def gen_vege_run(self, limit_road, limit_bdg, add_relief=True, gen_relief=None, srs_epsg='EPSG:30169', 
                      dense=None,
                      lod=2,
                      save_gml=True, gml_root=''):
         if not dense:
             dense = random.randint(50, 200)
         if lod == 1:
-            self.gen_tree_mesh_lod1(limit_road, limit_bdg, dense)
+            self.gen_tree_mesh_lod1(limit_road, limit_bdg, dense, add_relief=add_relief, gen_relief=gen_relief, srs_epsg=srs_epsg)
         elif lod == 2:
-            self.gen_tree_mesh_lod2(limit_road, limit_bdg, dense)
-        self.add_relief(points_relief)
+            self.gen_tree_mesh_lod2(limit_road, limit_bdg, dense, add_relief=add_relief, gen_relief=gen_relief, srs_epsg=srs_epsg)
+        # self.add_relief(points_relief)
         if save_gml and len(self.mesh_tree):
             vege_gml = self.create_citygml_vegetation(self.mesh_tree)
             save_citygml(vege_gml, os.path.join(gml_root, 'vegetation.gml'))
@@ -1110,26 +1290,33 @@ def main():
     
     lod_relief = params.relief_lod
 
+    # gen_relief = genRelief()
+    # gen_relief.gen_realCity_relief_lod1(img_path=satellite_image)
+
+
     # bg model
+     # relief
+    gen_relief = genRelief()
+    mesh_relief = gen_relief.run(img_path=satellite_image, relief_lod=1)
+    
      # road & device
     gen_road = genRoad(img_path=satellite_image, light_ratio=telegraph_pole_ratio)
     gen_road.crop_road_lineStr()
-    mesh_road = gen_road.gen_road_run(road_lod=lod_road, device_lod=lod_device, gml_root=gml_root_path, road_width_range=[road_width_low, road_width_high], road_sub=road_width_sub)
+    mesh_road = gen_road.gen_road_run(road_lod=lod_road, device_lod=lod_device, gml_root=gml_root_path, road_width_range=[road_width_low, road_width_high], road_sub=road_width_sub, add_relief=True, gen_relief=gen_relief, srs_epsg='EPSG:30169')
     road_limit = gen_road.road_limit
-    
     
      # veg
     gen_vegetation = genVegetation(img_path=satellite_image, high_ratio=high_tree_ratio)
-    mesh_vege = gen_vegetation.gen_vege_run(limit_road=None, limit_bdg=None, dense=2000, lod=lod_vegetation, gml_root=gml_root_path)
+    mesh_vege = gen_vegetation.gen_vege_run(limit_road=None, limit_bdg=None, dense=2000, lod=lod_vegetation, gml_root=gml_root_path, add_relief=True, gen_relief=gen_relief, srs_epsg='EPSG:30169')
 
-    res = mesh_vege + mesh_road
+    res = mesh_relief + mesh_vege + mesh_road
     combined_mesh = trimesh.util.concatenate(res)
 
      # export background model
     combined_mesh.export(os.path.join(obj_root_path, f'test_lod{lod_building}.obj'))
 
 
-    # # building
+    # building
     bldg_type = [prob_t1, prob_t2, prob_t3, prob_t4, prob_t5, prob_t6] if lod_building == 2 else [1., 0., 0., 0., 0., 0.]
     gen_building = genBuilding(bldg_footprint_path=bldg_footprint,
                                probabilities=bldg_type,
@@ -1137,7 +1324,10 @@ def main():
                                high_storey=storey_high)
 
     
-    gen_building.run(vertex_num=len(combined_mesh.vertices), 
+    gen_building.run(add_relief=True, 
+                     gen_relief=gen_relief, 
+                     srs_epsg='EPSG:30169', 
+                     vertex_num=len(combined_mesh.vertices), 
                      lod_building=lod_building, 
                      obj_root_path=obj_root_path)
     
