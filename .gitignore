@@ -24,3 +24,5 @@ dem_test.py
 *.obj
 
 *.tiff
+
+!kashiwa_dem_float.tiff
