@@ -9,6 +9,7 @@ from earcut.earcut import earcut
 from osgeo import gdal
 from shapely.geometry import MultiPolygon, Polygon, MultiLineString, LineString, Point, box
 
+from PIL import Image
 
 def check_img_ext(filename):
     _, ext = os.path.splitext(filename)
@@ -213,6 +214,18 @@ def flatten_multipolygons(geometry):
         return [polygon for polygon in geometry.geoms]
     else:
         return [geometry]
+
+def obj_color(mesh_list, feat_color):
+    width, height = 10, 10
+    im = Image.new('RGBA', (width, height), feat_color)
+    material = trimesh.visual.texture.SimpleMaterial(image=im)
+    for x in range(len(mesh_list)):
+        uv = np.random.rand(mesh_list[x].vertices.shape[0], 2)
+        color_visuals = trimesh.visual.TextureVisuals(uv=uv, image=im, material=material)
+        mesh_list[x] = trimesh.Trimesh(vertices=mesh_list[x].vertices, faces=mesh_list[x].faces,
+                                       visual=color_visuals, validate=True, process=False)
+
+    return mesh_list
 
 def save_citygml(root, file_name):
     tree = etree.ElementTree(root)

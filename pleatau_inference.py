@@ -1,4 +1,4 @@
-import os
+import os, time
 import cv2
 import glob
 import torch
@@ -242,7 +242,7 @@ def arg():
     return args
 
 
-def inference(model, ddim_sampler, im_data, im_Geotrans, keypoint_array, vertex_num, scale=2, seed=1024):
+def inference(model, ddim_sampler, im_data, im_Geotrans, keypoint_array, vertex_num, low_storey=2, high_storey=50, scale=2, seed=1024):
     # im_proj, im_Geotrans, im_data = read_tif(input_tiff)
     mask = get_mask(im_data)
     img = np.stack([mask, mask, mask], axis=2)
@@ -318,7 +318,10 @@ def inference(model, ddim_sampler, im_data, im_Geotrans, keypoint_array, vertex_
     mesh_converter.tiffToCloudWithGeoInfo(1)
     mesh_converter.delaunayTriangulation()
 
-    if mesh_converter.meshToArray(contour_points, keypoint_array, True, True) == 0:
+    random.seed(time.time())
+    building_height = random.uniform(low_storey, high_storey)
+    print(building_height)
+    if mesh_converter.meshToArray(contour_points, keypoint_array, building_height, True, True) == 0:
         print("Written out vertices and faces to array. ")
 
     vertices = [mesh_converter.getTriVertices(i) for i in range(mesh_converter.getVertexNum())]

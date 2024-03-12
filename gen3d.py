@@ -554,6 +554,12 @@ class genRoad:
             self.gen_device_lod1(self.roi_road, add_relief=add_relief, gen_relief=gen_relief, srs_epsg=srs_epsg)
         elif device_lod == 2:
             self.gen_device_lod2(self.roi_road, add_relief=add_relief, gen_relief=gen_relief, srs_epsg=srs_epsg)
+
+        feat_color_road = (255, 253, 230, 255)
+        feat_color_device = (240, 128, 128, 255)
+        self.mesh_road = obj_color(self.mesh_road,feat_color_road)
+        self.mesh_device = obj_color(self.mesh_device,feat_color_device)
+
         self.mesh_road += self.mesh_device
         
         # self.add_relief(points_relief)
@@ -605,12 +611,22 @@ class genBuilding:
     #     self.roi_building = self.bdg_src[self.bdg_src.within(self.roi_rect)]
     #     return self.roi_building
     
-    def run(self, gen_relief=None, add_relief=True, srs_epsg='EPSG:30169', lod_building=1, gml_root='', obj_root_path='', save_gml=True, crs='30169', vertex_num=0):
+    def run(self, gen_relief=None, add_relief=True, colored=True, srs_epsg='EPSG:30169', lod_building=1, gml_root='', obj_root_path='', save_gml=True, crs='30169', vertex_num=0):
         acc_vertices, acc_faces = [], []
         background_vertices_num = vertex_num
         
         with open(os.path.join(obj_root_path, f'test_lod{lod_building}.obj'), 'a') as obj_file:
             obj_file.write('\n')
+            
+            if colored:
+                obj_file.write('usemtl BuildingMaterial\n')
+                
+                with open(os.path.join(obj_root_path, f'material.mtl'), 'a') as mtl_file:
+                    mtl_file.write('\n\nnewmtl BuildingMaterial\n')
+                    mtl_file.write('Kd 0.615686 0.764706 0.901961\n')
+                    # mtl_file.write('newmtl BackgroundMaterial\n')
+                    # mtl_file.write('Kd 1.0 1.0 1.0\n')
+                    
             
         source_crs = pyproj.CRS(srs_epsg)
         target_crs = pyproj.CRS('EPSG:6668')
@@ -677,7 +693,7 @@ class genBuilding:
                         [self.origin_coords[idx][0], self.pixel_sizes[idx][0], 0, self.origin_coords[idx][1], 0, self.pixel_sizes[idx][1]],
                         dtype=np.float32)
                     vertices, faces = inference(model, ddim_sampler, self.footprint_images[idx], img_Geotrans, self.polygons[idx][0],
-                                                vertex_num, scale=self.mesh_scale, seed=self.random_seed)
+                                                vertex_num, low_storey=self.low_storey, high_storey=self.high_storey, scale=self.mesh_scale, seed=self.random_seed)
 
                 if add_relief:
                     bldg_array = np.array(vertices)
@@ -1248,7 +1264,7 @@ def param_parser():
     parser.add_argument('--road_width_ratio', help='Ratio of main road width and sidewalk width. (> 0.1) ', type=float, default=0.1)
     
     parser.add_argument('--veg_lod', help='LOD of vegetation objects. (0 - 2) ', type=int, default=2)
-    parser.add_argument('--veg_height_ratio', help='Ratio of low vegetation and medium-high tree. (> 1) ', type=float, default=10.)
+    parser.add_argument('--veg_height_ratio', help='Ratio of low vegetation and medium-high tree. (> 1) ', type=float, default=10)
     
     parser.add_argument('--device_lod', help='LOD of the cityFurniture. (0 - 2) ', type=int, default=2)
     parser.add_argument('--device_type_ratio', help='Ratio of utility poles and traffic lights. (> 1) ', type=float, default=10.)
@@ -1293,6 +1309,7 @@ def main():
     # gen_relief = genRelief()
     # gen_relief.gen_realCity_relief_lod1(img_path=satellite_image)
 
+    obj_colored = True
 
     # bg model
      # relief
@@ -1309,23 +1326,44 @@ def main():
     gen_vegetation = genVegetation(img_path=satellite_image, high_ratio=high_tree_ratio)
     mesh_vege = gen_vegetation.gen_vege_run(limit_road=None, limit_bdg=None, dense=2000, lod=lod_vegetation, gml_root=gml_root_path, add_relief=True, gen_relief=gen_relief, srs_epsg='EPSG:30169')
 
+    feat_color_vege = (137, 179, 95, 255)
+    feat_color_relief = (53, 53, 53, 30)
+
+    mesh_vege = obj_color(mesh_vege, feat_color_vege)
+    mesh_relief = obj_color(mesh_relief, feat_color_relief)
+    
+    for i in range(len(mesh_road)):
+        mesh_road[i].vertices[:, 2] += 1.
+        mesh_road[i].faces = mesh_road[i].faces[:, ::-1]
+
     res = mesh_relief + mesh_vege + mesh_road
     combined_mesh = trimesh.util.concatenate(res)
 
      # export background model
     combined_mesh.export(os.path.join(obj_root_path, f'test_lod{lod_building}.obj'))
-
+    # original_contents = None
+    # if obj_colored:
+    #     with open(os.path.join(obj_root_path, f'materials.mtl',), 'r') as file:
+    #         original_contents = file.read()
+            
+    #     with open(os.path.join(obj_root_path, f'test_lod{lod_building}.obj',), 'w') as new_file:
+    #         new_file.write(f'mtllib test_lod{lod_building}.mtl\n')
+    #         new_file.write(f'usemtl BackgroundMaterial\n')
+    #         new_file.write(original_contents)
 
     # building
     bldg_type = [prob_t1, prob_t2, prob_t3, prob_t4, prob_t5, prob_t6] if lod_building == 2 else [1., 0., 0., 0., 0., 0.]
     gen_building = genBuilding(bldg_footprint_path=bldg_footprint,
                                probabilities=bldg_type,
                                low_storey=storey_low,
-                               high_storey=storey_high)
+                               high_storey=storey_high, 
+                               mesh_scale=mesh_scale, 
+                               random_seed=random_seed)
 
     
     gen_building.run(add_relief=True, 
                      gen_relief=gen_relief, 
+                     colored=obj_colored, 
                      srs_epsg='EPSG:30169', 
                      vertex_num=len(combined_mesh.vertices), 
                      lod_building=lod_building, 
