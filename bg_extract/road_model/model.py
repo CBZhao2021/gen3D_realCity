@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import segmentation_models_pytorch as smp
 from torchvision import models
 from ..base import BaseModel
-from inplace_abn import InPlaceABN
+# from inplace_abn import InPlaceABN
 
 
 # ========================================

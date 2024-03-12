@@ -14,6 +14,5 @@ python gen3d.py --input gen3d_realCity_testData/mapbox/test02/footprint/footprin
 
 # TODO
 
-- Improve the vegetation and road extraction performance. (Change from YOLO/P2CNet to InternImage)
 - Improve building generation speed and performance.
 - Revise the topological relationship of relief/road/cityFurniture/vegetation

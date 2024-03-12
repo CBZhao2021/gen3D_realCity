@@ -8,10 +8,11 @@ lightning_logs/*
 
 config.py
 
-__pycache__
-
-bg_extract/__pycache__
-
+__pycache__/*
+bg_extract/__pycache__/*
+cldm/__pycache__/*
+ldm/__pycache__/*
+utils/__pycache__/*
 
 *.gml
 
