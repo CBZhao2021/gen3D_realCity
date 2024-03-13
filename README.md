@@ -5,7 +5,7 @@ Input building footprint and generate .obj and CityGML(.gml) files for real city
 
 Function impression
 ----------------
-![Function impression](./res_example/total_image2.jpg)
+![Function impression](./res_example/total_image3.jpg)
 
 Command example:
 ```
